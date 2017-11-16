@@ -1,1 +1,4 @@
 file-server/node_modules/
+client/node_modules/
+directory-server/node-modules/
+file-server/data/

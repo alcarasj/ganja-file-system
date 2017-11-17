@@ -4,11 +4,12 @@
   "description": "",
   "main": "file-server.js",
   "scripts": {
-    "test": "weed-win-intel.exe server  -master.port=9333 -volume.port=8080 -dir=\"./data\""
+    "test": "node file-server.js"
   },
   "author": "Jerico Alcaras",
   "license": "ISC",
   "dependencies": {
+    "express": "^4.16.2",
     "seaweedfs": "^1.0.0"
   }
 }

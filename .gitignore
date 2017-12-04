@@ -1,4 +1,3 @@
-file-server/node_modules/
-client/node_modules/
-directory-server/node-modules/
-file-server/data/
+ganja-web-server/node_modules/
+ganja-web-server/tmp/
+ganja-file-server/node_modules/

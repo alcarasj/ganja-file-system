@@ -1,0 +1,17 @@
+{
+  "name": "ganja-file-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "fileServer.js",
+  "scripts": {
+    "test": "node fileServer.js"
+  },
+  "author": "Jerico Alcaras",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.2",
+    "console-stamp": "^0.2.6",
+    "form-data": "^2.3.1",
+    "rimraf": "^2.6.2"
+  }
+}

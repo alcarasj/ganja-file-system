@@ -31,17 +31,19 @@ fileServer.get('/', (req, res) => {
 });
 
 fileServer.post('/write', (req, res) => {
-  const clientLog = "[" + req.ip + "] ";
   var form = new formidable.IncomingForm();
   form.parse(req, (err, fields, files) => {
     const file = files.file;
-    fs.copySync(file.path, path.join(__dirname, DATADIR, file.name), { overwrite: true, errorOnExist: false });
+    const name = fields.name;
+    const fileServerID = fields.fileServerID;
+    const writeLog = '[FILES-' + fileServerID + ' WRITE] ';
+    fs.copySync(file.path, path.join(__dirname, DATADIR, name), { overwrite: true, errorOnExist: false });
+    console.log(writeLog + name);
     res.sendStatus(200);
   });
 });
 
 fileServer.get('/read', (req, res) => {
-  const clientLog = "[" + req.ip + "] ";
   //TODO
   res.send(200);
 });

@@ -9,6 +9,8 @@ require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss' });
 const sqlite3 = require('sqlite3').verbose();
 const crypto = require('crypto');
 const formidable = require('formidable');
+const querystring = require("querystring");
+const mime = require('mime-types');
 
 const PORT = 8080;
 const HASH_ALGORITHM = 'sha-256';
@@ -49,15 +51,12 @@ webServer.post('/upload', (req, res) => {
     const fileName = files.file.name;
     const form = {
       file: fs.createReadStream(localPath),
-      name: fileName,
+      fileName: fileName,
       fileServerID: roundRobin,
     };
     var stmt = db.prepare('INSERT INTO directory (file_name, server_ip) VALUES (?, ?)');
     stmt.run(fileName, FILE_SERVERS[roundRobin]);
     stmt.finalize();
-    db.each("SELECT * FROM directory", (err, row) => {
-      console.log(row.file_name + " --- " + row.server_ip);
-    });
     if (roundRobin >= FILE_SERVERS.length) {
       roundRobin = 0;
     }
@@ -78,7 +77,22 @@ webServer.get('/delete', (req, res) => {
 
 webServer.get('/download', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
-  //TODO
+  const fileName = req.query.fileName;
+  db.each("SELECT * FROM directory", (err, row) => {
+    if (err) {
+      console.error(err);
+    }
+    if (row.file_name === fileName) {
+      const fileServerIP = row.server_ip;
+      const encodedFileName = querystring.stringify({ fileName });
+      request('http://' + fileServerIP + '/read?' + encodedFileName, (err, fileRes, body) => {
+        if (err) {
+          console.error(err);
+        }
+        console.log(fileRes);
+      });
+    }
+  });
 });
 
 webServer.listen(PORT, (err) => {

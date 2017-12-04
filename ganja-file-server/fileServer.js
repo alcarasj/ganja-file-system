@@ -6,6 +6,7 @@ const dns = require('dns');
 const request = require('request');
 const FormData = require('form-data');
 const formidable = require('formidable');
+const mime = require('mime-types');
 require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss' });
 
 if (process.argv.length <= 2) {
@@ -34,18 +35,24 @@ fileServer.post('/write', (req, res) => {
   var form = new formidable.IncomingForm();
   form.parse(req, (err, fields, files) => {
     const file = files.file;
-    const name = fields.name;
+    const fileName = fields.fileName;
     const fileServerID = fields.fileServerID;
     const writeLog = '[FILES-' + fileServerID + ' WRITE] ';
-    fs.copySync(file.path, path.join(__dirname, DATADIR, name), { overwrite: true, errorOnExist: false });
+    fs.copySync(file.path, path.join(__dirname, DATADIR, fileName), { overwrite: true, errorOnExist: false });
     console.log(writeLog + name);
     res.sendStatus(200);
   });
 });
 
 fileServer.get('/read', (req, res) => {
-  //TODO
-  res.send(200);
+  const fileName = req.query.fileName;
+  const localPath = path.join(__dirname, DATADIR, fileName);
+  const contentType = mime.lookup(localPath);
+  const stat = fs.statSync(localPath);
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Length', stat.size);
+  res.status(200);
+  fs.createReadStream(localPath).pipe(res);
 });
 
 fileServer.listen(PORT, (err) => {

@@ -15,7 +15,13 @@ const HASH_ALGORITHM = 'sha-256';
 const TMPDIR = './tmp';
 const FILE_SERVERS = ['127.0.0.1:8081', '127.0.0.1:8082', '127.0.0.1:8083'];
 var roundRobin = 0;
-var db = new sqlite3.Database(':memory:');
+var db = new sqlite3.Database('database.db', (err) => {
+  if (err) {
+    console.error(err.message)
+  }
+  console.log("Connected to SQLite database.");
+});
+db.run("CREATE TABLE IF NOT EXISTS directory (file_name TEXT PRIMARY KEY, server_ip TEXT NOT NULL)");
 
 if (!fs.existsSync(TMPDIR)) {
   fs.mkdirSync(TMPDIR);
@@ -46,18 +52,28 @@ webServer.post('/upload', (req, res) => {
       name: fileName,
       fileServerID: roundRobin,
     };
+    var stmt = db.prepare('INSERT INTO directory (file_name, server_ip) VALUES (?, ?)');
+    stmt.run(fileName, FILE_SERVERS[roundRobin]);
+    stmt.finalize();
+    db.each("SELECT * FROM directory", (err, row) => {
+      console.log(row.file_name + " --- " + row.server_ip);
+    });
     if (roundRobin >= FILE_SERVERS.length) {
       roundRobin = 0;
     }
     request.post({ url: 'http://' + FILE_SERVERS[roundRobin] + '/write', formData: form }, (err, slaveRes, body) => {
       if (err) {
         return console.error(err);
-      } else {
-        res.sendStatus(200);
       }
+      res.sendStatus(200);
     });
     roundRobin++;
   });
+});
+
+webServer.get('/delete', (req, res) => {
+  const clientLog = "[" + req.ip + "] ";
+  //TODO
 });
 
 webServer.get('/download', (req, res) => {

@@ -44,15 +44,10 @@ fileServer.post('/write', (req, res) => {
   });
 });
 
-fileServer.get('/read', (req, res) => {
+fileServer.get('/download', (req, res) => {
   const fileName = req.query.fileName;
   const localPath = path.join(__dirname, DATADIR, fileName);
-  const contentType = mime.lookup(localPath);
-  const stat = fs.statSync(localPath);
-  res.setHeader('Content-Type', contentType);
-  res.setHeader('Content-Length', stat.size);
-  res.status(200);
-  fs.createReadStream(localPath).pipe(res);
+  res.sendFile(localPath);
 });
 
 fileServer.listen(PORT, (err) => {

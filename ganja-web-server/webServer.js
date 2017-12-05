@@ -85,12 +85,7 @@ webServer.get('/download', (req, res) => {
     if (row.file_name === fileName) {
       const fileServerIP = row.server_ip;
       const encodedFileName = querystring.stringify({ fileName });
-      request('http://' + fileServerIP + '/read?' + encodedFileName, (err, fileRes, body) => {
-        if (err) {
-          console.error(err);
-        }
-        console.log(fileRes);
-      });
+      res.redirect('http://' + fileServerIP + '/download?' + encodedFileName);
     }
   });
 });

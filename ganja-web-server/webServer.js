@@ -43,6 +43,10 @@ webServer.get('/files', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
 });
 
+webServer.post('/login', (req, res) => {
+  const clientLog = "[" + req.ip + "] ";
+});
+
 webServer.post('/upload', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
   var reqForm = new formidable.IncomingForm();

@@ -3,3 +3,4 @@ ganja-web-server/tmp/
 ganja-file-server/node_modules/
 ganja-file-server/data/
 ganja-web-server/database.db
+ganja-auth-server/node_modules/

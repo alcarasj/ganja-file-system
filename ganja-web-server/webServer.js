@@ -48,7 +48,8 @@ webServer.get('/files', (req, res) => {
 
 webServer.post('/login', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
-
+  console.log(clientLog + "Login initiated for " + req.body.email);
+  res.redirect(307, 'http://' + AUTH_SERVER + '/authenticate');
 });
 
 webServer.post('/upload', (req, res) => {

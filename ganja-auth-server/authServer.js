@@ -41,7 +41,7 @@ authServer.post('/authenticate', (req, res) => {
   db.all("SELECT email, password FROM user", (err, rows) => {
     if (err) {
       console.error(err);
-      res.send(500);
+      return res.send(500);
     }
     if (rows) {
       const userRow = rows.filter((row) => {

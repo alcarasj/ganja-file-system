@@ -25,12 +25,6 @@ var fileServer = express();
 fileServer.use(bodyParser.urlencoded({ extended: false }));
 fileServer.use(bodyParser.json());
 
-fileServer.get('/', (req, res) => {
-  const clientLog = "[" + req.ip + "] ";
-  console.log(clientLog + "Connected.");
-  res.send("Welcome to Ganja File Server.")
-});
-
 fileServer.post('/write', (req, res) => {
   var form = new formidable.IncomingForm();
   form.parse(req, (err, fields, files) => {

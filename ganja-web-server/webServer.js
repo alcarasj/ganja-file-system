@@ -11,11 +11,14 @@ const crypto = require('crypto');
 const formidable = require('formidable');
 const querystring = require("querystring");
 const mime = require('mime-types');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const PORT = 8080;
 const HASH_ALGORITHM = 'sha-256';
 const TMPDIR = './tmp';
 const FILE_SERVERS = ['127.0.0.1:8081', '127.0.0.1:8082', '127.0.0.1:8083'];
+const AUTH_SERVER = '127.0.0.1:8070'
 var roundRobin = 0;
 var db = new sqlite3.Database('database.db', (err) => {
   if (err) {
@@ -45,6 +48,7 @@ webServer.get('/files', (req, res) => {
 
 webServer.post('/login', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
+
 });
 
 webServer.post('/upload', (req, res) => {

@@ -18,7 +18,9 @@ const PORT = 8080;
 const HASH_ALGORITHM = 'sha-256';
 const TMPDIR = './tmp';
 const FILE_SERVERS = ['127.0.0.1:8081', '127.0.0.1:8082', '127.0.0.1:8083'];
-const AUTH_SERVER = '127.0.0.1:8070'
+const AUTH_SERVER = '127.0.0.1:8070';
+//This secret is just used for testing purposes. In production, use environment variable.
+const SECRET = 'yallmothafuckasneedjesus';
 var roundRobin = 0;
 var db = new sqlite3.Database('database.db', (err) => {
   if (err) {
@@ -85,17 +87,28 @@ webServer.get('/delete', (req, res) => {
 });
 
 webServer.get('/download', (req, res) => {
-  const clientLog = "[" + req.ip + "] ";
-  const fileName = req.query.fileName;
-  db.each("SELECT * FROM directory", (err, row) => {
+  const authorization = req.get('authorization');
+  const token = authorization.split('Bearer ')[1];
+  if (!token) {
+    return res.status(401).send({ auth: false, message: 'No token provided.' });
+  }
+  jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      console.error(err);
+      return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
     }
-    if (row.file_name === fileName) {
-      const fileServerIP = row.server_ip;
-      const encodedFileName = querystring.stringify({ fileName });
-      res.redirect('http://' + fileServerIP + '/download?' + encodedFileName);
-    }
+    const clientLog = "[" + req.ip + "] ";
+    const fileName = req.query.fileName;
+    db.each("SELECT * FROM directory", (err, row) => {
+      if (err) {
+        console.error(err);
+      }
+      if (row.file_name === fileName) {
+        const fileServerIP = row.server_ip;
+        const encodedFileName = querystring.stringify({ fileName });
+        console.log("Download requested for " + fileName);
+        res.redirect('http://' + fileServerIP + '/download?' + encodedFileName);
+      }
+    });
   });
 });
 

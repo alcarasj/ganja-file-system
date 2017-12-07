@@ -6,7 +6,6 @@ const dns = require('dns');
 const request = require('request');
 const FormData = require('form-data');
 const formidable = require('formidable');
-const mime = require('mime-types');
 const jwt = require('jsonwebtoken');
 require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss' });
 

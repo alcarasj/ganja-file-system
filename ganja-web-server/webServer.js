@@ -10,7 +10,6 @@ const sqlite3 = require('sqlite3').verbose();
 const crypto = require('crypto');
 const formidable = require('formidable');
 const querystring = require("querystring");
-const mime = require('mime-types');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -28,7 +27,7 @@ var db = new sqlite3.Database('WEB.db', (err) => {
   }
   console.log("Connected to SQLite database.");
 });
-db.run("CREATE TABLE IF NOT EXISTS directory (file_name TEXT PRIMARY KEY, server_ip TEXT NOT NULL)");
+db.run("CREATE TABLE IF NOT EXISTS directory (file_name TEXT PRIMARY KEY, server_ip TEXT NOT NULL, lockable INTEGER NOT NULL DEFAULT 0)");
 
 if (!fs.existsSync(TMPDIR)) {
   fs.mkdirSync(TMPDIR);
@@ -55,7 +54,7 @@ webServer.get('/files', (req, res) => {
     res.write("<h2>Files currently in server</h2>");
     rows.forEach((row) => {
       const encodedFileName = querystring.stringify({ fileName: row.file_name });
-      res.write("<br>" + row.file_name + "</br>");
+      res.write("<br>" + row.file_name + lockable ? " LOCKABLE" : "" + "</br>");
     });
     return res.end();
   });
@@ -89,8 +88,8 @@ webServer.post('/upload', (req, res) => {
           return row.file_name === fileName;
         });
         if (dirRow.length === 0) {
-          var stmt = db.prepare('INSERT INTO directory (file_name, server_ip) VALUES (?, ?)');
-          stmt.run(fileName, CLUSTER_SERVERS[roundRobin]);
+          var stmt = db.prepare('INSERT INTO directory (file_name, server_ip, lockable) VALUES (?, ?, ?)');
+          stmt.run(fileName, CLUSTER_SERVERS[roundRobin], lockable ? 1 : 0);
           stmt.finalize();
           if (roundRobin >= CLUSTER_SERVERS.length) {
             roundRobin = 0;
@@ -114,11 +113,6 @@ webServer.post('/upload', (req, res) => {
       }
     });
   });
-});
-
-webServer.get('/overwrite', (req, res) => {
-  const clientLog = "[" + req.ip + "] ";
-  //TODO
 });
 
 webServer.delete('/delete', (req, res) => {

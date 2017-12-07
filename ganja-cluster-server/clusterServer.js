@@ -10,7 +10,6 @@ const sqlite3 = require('sqlite3').verbose();
 const sha1 = require('sha1');
 const formidable = require('formidable');
 const querystring = require("querystring");
-const mime = require('mime-types');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -114,7 +113,6 @@ clusterServer.get('/download', (req, res) => {
 });
 
 clusterServer.get('/delete', (req, res) => {
-  const clientLog = "[" + req.ip + "] ";
   const token = req.headers['x-access-token'];
   if (!token) {
     return res.status(401).send({ auth: false, message: 'No token provided.' });
@@ -130,10 +128,9 @@ clusterServer.get('/delete', (req, res) => {
           console.error(err);
         }
         if (row.file_name === fileName) {
-          const clientLog = "[" + req.ip + "] ";
           const fileServerIP = row.server_ip;
           const encodedFileName = querystring.stringify({ fileName });
-          console.log(clientLog + "Delete requested for " + fileName);
+          console.log("Delete requested for " + fileName);
           db.run("DELETE FROM directory WHERE file_name=?", fileName, (err) => {
             if (err) {
               console.error(err);

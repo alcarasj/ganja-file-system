@@ -29,6 +29,21 @@ var lockServer = express();
 lockServer.use(bodyParser.urlencoded({ extended: false }));
 lockServer.use(bodyParser.json());
 
+webServer.get('/lock', (req, res) => {
+  const clientLog = "[" + req.ip + "] ";
+  //TODO
+});
+
+webServer.get('/unlock', (req, res) => {
+  const clientLog = "[" + req.ip + "] ";
+  //TODO
+});
+
+webServer.get('/checkForLock', (req, res) => {
+  const clientLog = "[" + req.ip + "] ";
+  //TODO
+});
+
 lockServer.listen(PORT, (err) => {
   if (err) {
     return console.log('Lock server failed to start.', err);

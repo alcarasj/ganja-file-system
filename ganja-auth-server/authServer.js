@@ -18,7 +18,7 @@ const PORT = 8070;
 const TMPDIR = './tmp';
 //This secret is just used for testing purposes. In production, use environment variable.
 const SECRET = 'yallmothafuckasneedjesus';
-var db = new sqlite3.Database('database.db', (err) => {
+var db = new sqlite3.Database('AUTH.db', (err) => {
   if (err) {
     console.error(err.message)
   }

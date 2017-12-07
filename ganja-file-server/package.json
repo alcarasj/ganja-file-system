@@ -4,10 +4,16 @@
   "description": "",
   "main": "fileServer.js",
   "scripts": {
-    "test": "npm-run-all -p FILES-0 FILES-1 FILES-2",
-    "FILES-0": "node fileServer.js 8081",
-    "FILES-1": "node fileServer.js 8082",
-    "FILES-2": "node fileServer.js 8083"
+    "test": "npm-run-all -p FILES-0 FILES-1 FILES-2 FILES-3 FILES-4 FILES-5 FILES-6 FILES-7 FILES-8",
+    "FILES-0": "node fileServer.js 8090",
+    "FILES-1": "node fileServer.js 8091",
+    "FILES-2": "node fileServer.js 8092",
+    "FILES-3": "node fileServer.js 8093",
+    "FILES-4": "node fileServer.js 8094",
+    "FILES-5": "node fileServer.js 8095",
+    "FILES-6": "node fileServer.js 8096",
+    "FILES-7": "node fileServer.js 8097",
+    "FILES-8": "node fileServer.js 8098"
   },
   "author": "Jerico Alcaras",
   "license": "ISC",
@@ -17,6 +23,7 @@
     "form-data": "^2.3.1",
     "formidable": "^1.1.1",
     "fs-extra": "^4.0.2",
+    "jsonwebtoken": "^8.1.0",
     "mime-types": "^2.1.17",
     "request": "^2.83.0",
     "rimraf": "^2.6.2"

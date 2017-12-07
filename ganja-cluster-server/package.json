@@ -1,0 +1,30 @@
+{
+  "name": "ganja-cluster-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "clusterServer.js",
+  "scripts": {
+    "start": "node clusterServer.js",
+    "test": "npm-run-all -p CLUSTER-0 CLUSTER-1 CLUSTER-2",
+    "CLUSTER-0": "node clusterServer.js 8081",
+    "CLUSTER-1": "node clusterServer.js 8082",
+    "CLUSTER-2": "node clusterServer.js 8083"
+  },
+  "author": "Jerico Alcaras",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "console-stamp": "^0.2.6",
+    "express": "^4.16.2",
+    "form-data": "^2.3.1",
+    "formidable": "^1.1.1",
+    "jsonwebtoken": "^8.1.0",
+    "mime-types": "^2.1.17",
+    "request": "^2.83.0",
+    "rimraf": "^2.6.2",
+    "sqlite3": "^3.1.13"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.2"
+  }
+}

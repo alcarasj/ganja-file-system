@@ -5,3 +5,10 @@ ganja-file-server/data/
 ganja-web-server/database.db
 ganja-auth-server/node_modules/
 ganja-auth-server/database.db
+ganja-cluster-server/node_modules/
+ganja-cluster-server/CLUSTER-1.db
+ganja-cluster-server/CLUSTER-2.db
+ganja-cluster-server/CLUSTER-0.db
+ganja-web-server/WEB.db
+ganja-auth-server/AUTH.db
+deleteDBs.bat

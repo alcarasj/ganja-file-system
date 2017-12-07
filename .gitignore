@@ -1,11 +1,3 @@
-ganja-web-server/node_modules/
-ganja-web-server/tmp/
-ganja-file-server/node_modules/
-ganja-file-server/data/
-ganja-web-server/database.db
-ganja-auth-server/node_modules/
-ganja-auth-server/database.db
-ganja-cluster-server/node_modules/
-ganja-cluster-server/*.db
-ganja-web-server/*.db
-ganja-auth-server/*.db
+*/node_modules/
+*/tmp/
+*.db

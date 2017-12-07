@@ -36,6 +36,9 @@ authServer.use(bodyParser.json());
 
 authServer.post('/authenticate', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
+  if (!req.body.email || !req.body.password) {
+    return res.send(400);
+  }
   const email = req.body.email;
   const password = req.body.password;
   db.all("SELECT email, password FROM user", (err, rows) => {
@@ -54,13 +57,13 @@ authServer.post('/authenticate', (req, res) => {
           console.log(email + " was authenticated successfully.");
           res.status(200).send({ auth: true, token });
         } else {
-          res.send(401);
+          return res.send(401);
         }
       } else {
-        res.send(400);
+        return res.send(400);
       }
     } else {
-      res.send(400);
+      return res.send(400);
     }
   });
 });
@@ -73,10 +76,10 @@ authServer.post('/register', (req, res) => {
     stmt.run(userEmail, hashedUserPassword);
     stmt.finalize();
     console.log(userEmail + " registered succesfully.");
-    res.send(200);
+    return res.send(200);
   } catch (err) {
     console.error(err);
-    res.send(400);
+    return res.send(400);
   }
 });
 

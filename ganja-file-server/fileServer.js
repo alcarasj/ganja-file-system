@@ -19,6 +19,9 @@ const PORT = process.argv[2];
 const DATADIR = './data';
 //This secret is just used for testing purposes. In production, use environment variable.
 const SECRET = 'yallmothafuckasneedjesus';
+const READLOG = '[READ] ';
+const UPLOADLOG = '[WRITE] ';
+const DELETELOG = '[DELETE] ';
 
 if (!fs.existsSync(DATADIR)) {
   fs.mkdirSync(DATADIR);
@@ -33,11 +36,34 @@ fileServer.post('/upload', (req, res) => {
   form.parse(req, (err, fields, files) => {
     const file = files.file;
     const fileName = fields.fileName;
-    const fileServerID = fields.fileServerID;
-    const uploadLog = '[FILES-' + fileServerID + ' WRITE] ';
     fs.copySync(file.path, path.join(__dirname, DATADIR, fileName), { overwrite: true, errorOnExist: false });
-    console.log(uploadLog + fileName);
-    res.sendStatus(200);
+    console.log(UPLOADLOG + fileName);
+    return res.sendStatus(200);
+  });
+});
+
+fileServer.get('/delete', (req, res) => {
+  const token = req.headers['x-access-token'];
+  if (!token) {
+    return res.status(401).send({ auth: false, message: 'No token provided.' });
+  }
+  jwt.verify(token, SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+    }
+    if (req.query.fileName) {
+      const fileName = req.query.fileName;
+      fs.unlink(path.join(__dirname, DATADIR, fileName), (err) => {
+        if (err) {
+          console.error(err)
+          return res.sendStatus(500);
+        }
+        console.log(DELETELOG + fileName);
+        return res.sendStatus(200);
+      })
+    } else {
+      return res.sendStatus(400);
+    }
   });
 });
 
@@ -50,9 +76,14 @@ fileServer.get('/download', (req, res) => {
     if (err) {
       return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
     }
-    const fileName = req.query.fileName;
-    const localPath = path.join(__dirname, DATADIR, fileName);
-    res.sendFile(localPath);
+    if (req.query.fileName) {
+      const fileName = req.query.fileName;
+      const localPath = path.join(__dirname, DATADIR, fileName);
+      console.log(READLOG + fileName);
+      return res.sendFile(localPath);
+    } else {
+      return res.sendStatus(400);
+    }
   });
 });
 

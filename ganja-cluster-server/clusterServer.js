@@ -7,7 +7,7 @@ const request = require('request');
 const FormData = require('form-data');
 require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss' });
 const sqlite3 = require('sqlite3').verbose();
-const crypto = require('crypto');
+const sha1 = require('sha1');
 const formidable = require('formidable');
 const querystring = require("querystring");
 const mime = require('mime-types');
@@ -20,7 +20,6 @@ if (process.argv.length <= 2) {
 }
 
 const PORT = process.argv[2];
-const HASH_ALGORITHM = 'sha-256';
 const TMPDIR = './tmp';
 const AUTH_SERVER = '127.0.0.1:8070';
 //This secret is just used for testing purposes. In production, use environment variable.
@@ -78,9 +77,9 @@ clusterServer.post('/upload', (req, res) => {
       if (err) {
         return console.error(err);
       }
-      res.sendStatus(200);
+      roundRobin++;
+      return res.sendStatus(200);
     });
-    roundRobin++;
   });
 });
 
@@ -94,20 +93,60 @@ clusterServer.get('/download', (req, res) => {
       return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
     }
     const clientLog = "[" + req.ip + "] ";
-    const fileName = req.query.fileName;
-    console.log(fileName);
-    db.each("SELECT * FROM directory", (err, row) => {
-      if (err) {
-        console.error(err);
-      }
-      if (row.file_name === fileName) {
-        const fileServerIP = row.server_ip;
-        const encodedFileName = querystring.stringify({ fileName });
-        console.log("Download requested for " + fileName);
-        res.header('x-access-token', token);
-        res.redirect('http://' + fileServerIP + '/download?' + encodedFileName);
-      }
-    });
+    if (req.query.fileName){
+      const fileName = req.query.fileName;
+      db.each("SELECT * FROM directory", (err, row) => {
+        if (err) {
+          console.error(err);
+        }
+        if (row.file_name === fileName) {
+          const fileServerIP = row.server_ip;
+          const encodedFileName = querystring.stringify({ fileName });
+          console.log("Download requested for " + fileName);
+          res.header('x-access-token', token);
+          return res.redirect('http://' + fileServerIP + '/download?' + encodedFileName);
+        }
+      });
+    } else {
+      return res.sendStatus(400);
+    }
+  });
+});
+
+clusterServer.get('/delete', (req, res) => {
+  const clientLog = "[" + req.ip + "] ";
+  const token = req.headers['x-access-token'];
+  if (!token) {
+    return res.status(401).send({ auth: false, message: 'No token provided.' });
+  }
+  jwt.verify(token, SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+    }
+    if (req.query.fileName) {
+      const fileName = req.query.fileName;
+      db.each("SELECT * FROM directory", (err, row) => {
+        if (err) {
+          console.error(err);
+        }
+        if (row.file_name === fileName) {
+          const clientLog = "[" + req.ip + "] ";
+          const fileServerIP = row.server_ip;
+          const encodedFileName = querystring.stringify({ fileName });
+          console.log(clientLog + "Delete requested for " + fileName);
+          db.run("DELETE FROM directory WHERE file_name=?", fileName, (err) => {
+            if (err) {
+              console.error(err);
+              return res.sendStatus(500);
+            }
+          });
+          res.header('x-access-token', token);
+          return res.redirect('http://' + fileServerIP + '/delete?' + encodedFileName);
+        }
+      });
+    } else {
+      return res.sendStatus(400);
+    }
   });
 });
 

@@ -60,15 +60,19 @@ clusterServer.post('/upload', (req, res) => {
   var reqForm = new formidable.IncomingForm();
   reqForm.parse(req, (err, fields, files) => {
     const localPath = files.file.path;
+    const overwrite = fields.overwrite;
     const fileName = fields.fileName;
     const form = {
       file: fs.createReadStream(localPath),
       fileName: fileName,
       fileServerID: roundRobin,
+      overwrite: overwrite,
     };
+    if (!overwrite) {
     var stmt = db.prepare('INSERT INTO directory (file_name, server_ip) VALUES (?, ?)');
     stmt.run(fileName, FILE_SERVERS[roundRobin]);
     stmt.finalize();
+    }
     request.post({ url: 'http://' + FILE_SERVERS[roundRobin] + '/upload', formData: form }, (err, fileRes, fileBody) => {
       if (err) {
         return console.error(err);

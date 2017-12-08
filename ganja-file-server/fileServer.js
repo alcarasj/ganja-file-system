@@ -35,7 +35,8 @@ fileServer.post('/upload', (req, res) => {
   form.parse(req, (err, fields, files) => {
     const file = files.file;
     const fileName = fields.fileName;
-    fs.copySync(file.path, path.join(__dirname, DATADIR, fileName), { overwrite: true, errorOnExist: false });
+    const overwrite = fields.overwrite;
+    fs.copySync(file.path, path.join(__dirname, DATADIR, fileName), { overwrite: overwrite, errorOnExist: false });
     console.log(WRITELOG + fileName);
     return res.status(200).send({ success: true, message: fileName + " successfully uploaded."});
   });

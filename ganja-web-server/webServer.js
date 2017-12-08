@@ -66,32 +66,56 @@ webServer.post('/upload', (req, res) => {
   var reqForm = new formidable.IncomingForm();
   reqForm.parse(req, (err, fields, files) => {
     const localPath = files.file.path;
-    const lockable = fields.options.lockable;
-    const overwrite = fields.options.overwrite;
+    const lockable = fields.lockable;
+    const overwrite = fields.overwrite;
     const fileName = files.file.name;
     const form = {
       file: fs.createReadStream(localPath),
       fileName: fileName,
       clusterServerID: roundRobin,
+      overwrite: overwrite,
     };
-    db.all("SELECT * FROM directory", (err, rows) => {
+    db.all("SELECT * FROM directory WHERE file_name=?", fileName, (err, rows) => {
       if (err) {
         console.error(err);
         return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName + err });
       }
-      if (rows) {
-        const dirRow = rows.filter((row) => {
-          return row.file_name === fileName;
+      const fileRows = rows.filter((row) => {
+        return row.file_name === fileName;
+      });
+      if (fileRows.length === 0) {
+        console.log("New file")
+        var stmt = db.prepare('INSERT INTO directory (file_name, server_ip, lockable) VALUES (?, ?, ?)');
+        stmt.run(fileName, CLUSTER_SERVERS[roundRobin], lockable ? 1 : 0);
+        stmt.finalize();
+        console.log(clientLog + "Upload requested for " + fileName)
+        request.post({ url: 'http://' + CLUSTER_SERVERS[roundRobin] + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
+          if (err) {
+            console.error(err);
+            return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName + err});;
+          }
+          if (clusterBody) {
+            const parsedClusterBody = JSON.parse(clusterBody);
+            if (parsedClusterBody.success) {
+              if (++roundRobin >= CLUSTER_SERVERS.length) {
+                roundRobin = 0;
+              }
+              return res.status(200).send({ success: true, message: fileName + " successfully uploaded." + (lockable ? " (LOCKABLE)" : "")});
+            } else {
+              return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+            }
+          } else {
+            return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+          }
         });
-        if (dirRow.length === 0) {
-          var stmt = db.prepare('INSERT INTO directory (file_name, server_ip, lockable) VALUES (?, ?, ?)');
-          stmt.run(fileName, CLUSTER_SERVERS[roundRobin], lockable ? 1 : 0);
-          stmt.finalize();
-          console.log(clientLog + "Upload requested for " + fileName)
-          request.post({ url: 'http://' + CLUSTER_SERVERS[roundRobin] + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
+      } else if (fileRows.length === 1) {
+        //check for lock
+        if (overwrite) {
+          console.log(clientLog + "Upload with overwrite requested for " + fileName)
+          request.post({ url: 'http://' + fileRows[0].server_ip + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
             if (err) {
               console.error(err);
-              return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName + err});;
+              return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName + err});;
             }
             if (clusterBody) {
               const parsedClusterBody = JSON.parse(clusterBody);
@@ -99,18 +123,16 @@ webServer.post('/upload', (req, res) => {
                 if (++roundRobin >= CLUSTER_SERVERS.length) {
                   roundRobin = 0;
                 }
-                return res.status(200).send({ success: true, message: fileName + " successfully uploaded." + (lockable ? " LOCKABLE" : "")});
+                return res.status(200).send({ success: true, message: fileName + " successfully overwritten." + (lockable ? " (LOCKABLE)" : "")});
               } else {
-                return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+                return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName });
               }
             } else {
-              return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+              return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName });
             }
           });
-        } else if (dirRow.length === 1) {
-          //File exists, overwrite or make duplicate?
         } else {
-          return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+          return res.status(400).send({ success: false, message: fileName + " already exists. Pass overwrite: true with your request body to overwrite the existing file." });
         }
       } else {
         return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });

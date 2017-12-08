@@ -19,7 +19,7 @@ const DATADIR = './data';
 //This secret is just used for testing purposes. In production, use environment variable.
 const SECRET = 'yallmothafuckasneedjesus';
 const READLOG = '[READ] ';
-const UPLOADLOG = '[WRITE] ';
+const WRITELOG = '[WRITE] ';
 const DELETELOG = '[DELETE] ';
 
 if (!fs.existsSync(DATADIR)) {
@@ -36,32 +36,32 @@ fileServer.post('/upload', (req, res) => {
     const file = files.file;
     const fileName = fields.fileName;
     fs.copySync(file.path, path.join(__dirname, DATADIR, fileName), { overwrite: true, errorOnExist: false });
-    console.log(UPLOADLOG + fileName);
-    return res.sendStatus(200);
+    console.log(WRITELOG + fileName);
+    return res.status(200).send({ success: true, message: fileName + " successfully uploaded."});
   });
 });
 
 fileServer.get('/delete', (req, res) => {
   const token = req.headers['x-access-token'];
   if (!token) {
-    return res.status(401).send({ auth: false, message: 'No token provided.' });
+    return res.status(401).send({ success: false, message: 'No token provided.' });
   }
   jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
     if (req.query.fileName) {
       const fileName = req.query.fileName;
       fs.unlink(path.join(__dirname, DATADIR, fileName), (err) => {
         if (err) {
           console.error(err)
-          return res.sendStatus(500);
+          return res.status(500).send({ success: false, message: "Unable to delete " + fileName });
         }
         console.log(DELETELOG + fileName);
-        return res.sendStatus(200);
+        return res.status(200).send({ success: true, message: fileName + " successfully deleted." });
       })
     } else {
-      return res.sendStatus(400);
+      return res.status(400).send({ success: false, message: "No file name provided." });
     }
   });
 });
@@ -81,7 +81,7 @@ fileServer.get('/download', (req, res) => {
       console.log(READLOG + fileName);
       return res.sendFile(localPath);
     } else {
-      return res.sendStatus(400);
+      return res.status(400).send({ success: false, message: "No file name provided." });
     }
   });
 });

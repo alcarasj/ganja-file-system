@@ -35,7 +35,7 @@ lockServer.use(bodyParser.json());
 
 lockServer.get('/lock', (req, res) => {
   const fileName = req.query.fileName;
-  const lockTimeInSeconds = req.query.lockTimeInSeconds ? parseInt(req.query.lockTimeInSeconds) : DEFAULT_LOCK_TIME;
+  const lockTimeInSeconds = req.query.lockTime ? parseInt(req.query.lockTime) : DEFAULT_LOCK_TIME;
   fileLocks.get(fileName, (err, value) => {
     if (err) {
       console.error(err);

@@ -14,16 +14,16 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 const PORT = 8080;
-const HASH_ALGORITHM = 'sha-256';
 const TMPDIR = './tmp';
 const CLUSTER_SERVERS = ['127.0.0.1:8081', '127.0.0.1:8082', '127.0.0.1:8083'];
 const AUTH_SERVER = '127.0.0.1:8070';
+const LOCK_SERVER = '127.0.0.1:8071';
 //This secret is just used for testing purposes. In production, use environment variable.
 const SECRET = 'yallmothafuckasneedjesus';
 var roundRobin = 0;
 var db = new sqlite3.Database('WEB.db', (err) => {
   if (err) {
-    console.error(err.message)
+    console.error(err.message);
   }
   console.log("Connected to SQLite database.");
 });
@@ -39,22 +39,17 @@ webServer.use(bodyParser.json());
 
 webServer.get('/', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
-  console.log(clientLog + "Connected.");
-  res.sendFile(path.join(__dirname + '/index.html'));
-});
-
-webServer.get('/files', (req, res) => {
-  const clientLog = "[" + req.ip + "] ";
   db.all("SELECT * FROM directory", (err, rows) => {
     if (err) {
       console.error(err);
-      return res.sendStatus(500);
+      return res.status(500).send({ success: false, message: 'Failed to get a listing of files' + err });
     }
     res.write("<h1>Ganja File System</h1>");
     res.write("<h2>Files currently in server</h2>");
     rows.forEach((row) => {
       const encodedFileName = querystring.stringify({ fileName: row.file_name });
-      res.write("<br>" + row.file_name + lockable ? " LOCKABLE" : "" + "</br>");
+      console.log(row);
+      res.write("<br>" + row.file_name + (row.lockable === 1 ? " LOCKABLE" : "") + "</br>");
     });
     return res.end();
   });
@@ -71,7 +66,8 @@ webServer.post('/upload', (req, res) => {
   var reqForm = new formidable.IncomingForm();
   reqForm.parse(req, (err, fields, files) => {
     const localPath = files.file.path;
-    const lockable = fields.lockable;
+    const lockable = fields.options.lockable;
+    const overwrite = fields.options.overwrite;
     const fileName = files.file.name;
     const form = {
       file: fs.createReadStream(localPath),
@@ -81,7 +77,7 @@ webServer.post('/upload', (req, res) => {
     db.all("SELECT * FROM directory", (err, rows) => {
       if (err) {
         console.error(err);
-        return res.sendStatus(500);
+        return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName + err });
       }
       if (rows) {
         const dirRow = rows.filter((row) => {
@@ -91,25 +87,33 @@ webServer.post('/upload', (req, res) => {
           var stmt = db.prepare('INSERT INTO directory (file_name, server_ip, lockable) VALUES (?, ?, ?)');
           stmt.run(fileName, CLUSTER_SERVERS[roundRobin], lockable ? 1 : 0);
           stmt.finalize();
-          if (roundRobin >= CLUSTER_SERVERS.length) {
-            roundRobin = 0;
-          }
           console.log(clientLog + "Upload requested for " + fileName)
           request.post({ url: 'http://' + CLUSTER_SERVERS[roundRobin] + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
             if (err) {
               console.error(err);
-              return res.sendStatus(500);
+              return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName + err});;
             }
-            roundRobin++;
-            return res.sendStatus(200);
+            if (clusterBody) {
+              const parsedClusterBody = JSON.parse(clusterBody);
+              if (parsedClusterBody.success) {
+                if (++roundRobin >= CLUSTER_SERVERS.length) {
+                  roundRobin = 0;
+                }
+                return res.status(200).send({ success: true, message: fileName + " successfully uploaded." + (lockable ? " LOCKABLE" : "")});
+              } else {
+                return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+              }
+            } else {
+              return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+            }
           });
         } else if (dirRow.length === 1) {
           //File exists, overwrite or make duplicate?
         } else {
-          return res.sendStatus(500);
+          return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
         }
       } else {
-        return res.sendStatus(500);
+        return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
       }
     });
   });
@@ -119,17 +123,18 @@ webServer.delete('/delete', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
   const token = req.headers['x-access-token'];
   if (!token) {
-    return res.status(401).send({ auth: false, message: 'No token provided.' });
+    return res.status(401).send({ success: false, message: 'No token provided.' });
   }
   jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
     if (req.body.fileName) {
       const fileName = req.body.fileName;
-      db.each("SELECT * FROM directory", (err, row) => {
+      db.each("SELECT * FROM directory WHERE file_name=?", fileName, (err, row) => {
         if (err) {
           console.error(err);
+          return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
         }
         if (row.file_name === fileName) {
           const clientLog = "[" + req.ip + "] ";
@@ -139,15 +144,17 @@ webServer.delete('/delete', (req, res) => {
           db.run("DELETE FROM directory WHERE file_name=?", fileName, (err) => {
             if (err) {
               console.error(err);
-              return res.sendStatus(500);
+              return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
             }
           });
           res.header('x-access-token', token);
           return res.redirect('http://' + clusterServerIP + '/delete?' + encodedFileName);
+        } else {
+          return res.status(404).send({ success: false, message: fileName + " could not be found in the system." });
         }
       });
     } else {
-      return res.status(400).send("No file name provided.")
+      return res.status(400).send({ success: false, message: "No file name provided." });
     }
   });
 });
@@ -156,15 +163,48 @@ webServer.get('/download', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
   const token = req.headers['x-access-token'];
   if (!token) {
-    return res.status(401).send({ auth: false, message: 'No token provided.' });
+    return res.status(401).send({ success: false, message: 'No token provided.' });
   }
   jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
     if (req.query.fileName) {
       const fileName = req.query.fileName;
-      db.each("SELECT * FROM directory", (err, row) => {
+      db.each("SELECT * FROM directory WHERE file_name=?", fileName, (err, row) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).send({ success: false, message: "Failed to download " + fileName + err });
+        }
+        if (row.file_name === fileName) {
+          const clusterServerIP = row.server_ip;
+          const encodedFileName = querystring.stringify({ fileName });
+          console.log(clientLog + "Download requested for " + fileName);
+          res.header('x-access-token', token);
+          return res.redirect('http://' + clusterServerIP + '/download?' + encodedFileName);
+        } else {
+          return res.status(404).send({ success: false, message: fileName + " could not be found in the system." });
+        }
+      });
+    } else {
+      return res.status(400).send({ success: false, message: "No file name provided." });
+    }
+  });
+});
+
+webServer.get('/lock', (req, res) => {
+  const clientLog = "[" + req.ip + "] ";
+  const token = req.headers['x-access-token'];
+  if (!token) {
+    return res.status(401).send({ success: false, message: 'No token provided.' });
+  }
+  jwt.verify(token, SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
+    }
+    if (req.query.fileName) {
+      const fileName = req.query.fileName;
+      db.each("SELECT * FROM directory WHERE file_name=?", fileName, (err, row) => {
         if (err) {
           console.error(err);
         }
@@ -177,7 +217,7 @@ webServer.get('/download', (req, res) => {
         }
       });
     } else {
-      return res.status(400).send("No file name provided.")
+      return res.status(400).send({ success: false, message: "No file name provided." });
     }
   });
 });

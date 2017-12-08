@@ -44,7 +44,7 @@ authServer.post('/authenticate', (req, res) => {
   db.all("SELECT email, password FROM user", (err, rows) => {
     if (err) {
       console.error(err);
-      return res.send(500);
+      return res.sendStatus(500);
     }
     if (rows) {
       const userRow = rows.filter((row) => {
@@ -57,13 +57,13 @@ authServer.post('/authenticate', (req, res) => {
           console.log(email + " was authenticated successfully.");
           res.status(200).send({ auth: true, token });
         } else {
-          return res.send(401);
+          return res.sendStatus(401);
         }
       } else {
-        return res.send(400);
+        return res.sendStatus(400);
       }
     } else {
-      return res.send(400);
+      return res.sendStatus(400);
     }
   });
 });
@@ -76,10 +76,10 @@ authServer.post('/register', (req, res) => {
     stmt.run(userEmail, hashedUserPassword);
     stmt.finalize();
     console.log(userEmail + " registered succesfully.");
-    return res.send(200);
+    return res.sendStatus(200);
   } catch (err) {
     console.error(err);
-    return res.send(400);
+    return res.sendStatus(400);
   }
 });
 

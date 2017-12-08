@@ -69,15 +69,23 @@ clusterServer.post('/upload', (req, res) => {
     var stmt = db.prepare('INSERT INTO directory (file_name, server_ip) VALUES (?, ?)');
     stmt.run(fileName, FILE_SERVERS[roundRobin]);
     stmt.finalize();
-    if (roundRobin >= FILE_SERVERS.length) {
-      roundRobin = 0;
-    }
     request.post({ url: 'http://' + FILE_SERVERS[roundRobin] + '/upload', formData: form }, (err, fileRes, fileBody) => {
       if (err) {
         return console.error(err);
       }
-      roundRobin++;
-      return res.sendStatus(200);
+      if (fileBody) {
+        const parsedFileBody = JSON.parse(fileBody);
+        if (parsedFileBody.success) {
+          if (++roundRobin >= FILE_SERVERS.length) {
+            roundRobin = 0;
+          }
+          return res.status(200).send({ success: true, message: fileName + " successfully uploaded."});
+        } else {
+          return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+        }
+      } else {
+        return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+      }
     });
   });
 });
@@ -85,18 +93,19 @@ clusterServer.post('/upload', (req, res) => {
 clusterServer.get('/download', (req, res) => {
   const token = req.headers['x-access-token'];
   if (!token) {
-    return res.status(401).send({ auth: false, message: 'No token provided.' });
+    return res.status(401).send({ success: false, message: 'No token provided.' });
   }
   jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
     const clientLog = "[" + req.ip + "] ";
     if (req.query.fileName){
       const fileName = req.query.fileName;
-      db.each("SELECT * FROM directory", (err, row) => {
+      db.each("SELECT * FROM directory WHERE file_name=?", fileName, (err, row) => {
         if (err) {
           console.error(err);
+          return res.status(500).send({ success: false, message: "Failed to download " + fileName + err });
         }
         if (row.file_name === fileName) {
           const fileServerIP = row.server_ip;
@@ -104,10 +113,12 @@ clusterServer.get('/download', (req, res) => {
           console.log("Download requested for " + fileName);
           res.header('x-access-token', token);
           return res.redirect('http://' + fileServerIP + '/download?' + encodedFileName);
+        } else {
+          return res.status(404).send({ success: false, message: fileName + " could not be found in the system." });
         }
       });
     } else {
-      return res.sendStatus(400);
+      return res.status(400).send({ success: false, message: "No file name provided."});
     }
   });
 });
@@ -115,17 +126,18 @@ clusterServer.get('/download', (req, res) => {
 clusterServer.get('/delete', (req, res) => {
   const token = req.headers['x-access-token'];
   if (!token) {
-    return res.status(401).send({ auth: false, message: 'No token provided.' });
+    return res.status(401).send({ success: false, message: 'No token provided.' });
   }
   jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token ' + err });
     }
     if (req.query.fileName) {
       const fileName = req.query.fileName;
-      db.each("SELECT * FROM directory", (err, row) => {
+      db.each("SELECT * FROM directory WHERE file_name=?", fileName, (err, row) => {
         if (err) {
           console.error(err);
+          return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
         }
         if (row.file_name === fileName) {
           const fileServerIP = row.server_ip;
@@ -134,15 +146,17 @@ clusterServer.get('/delete', (req, res) => {
           db.run("DELETE FROM directory WHERE file_name=?", fileName, (err) => {
             if (err) {
               console.error(err);
-              return res.sendStatus(500);
+              return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
             }
           });
           res.header('x-access-token', token);
           return res.redirect('http://' + fileServerIP + '/delete?' + encodedFileName);
+        } else {
+          return res.status(404).send({ success: false, message: fileName + " could not be found in the system." });
         }
       });
     } else {
-      return res.sendStatus(400);
+      return res.status(400).send({ success: false, message: "No file name provided."});
     }
   });
 });

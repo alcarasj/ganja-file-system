@@ -91,7 +91,6 @@ webServer.post('/upload', (req, res) => {
       if (!files.file || !fields.lockable || !fields.overwrite) {
         return res.status(400).send({ success: false, message: "Form must contain:\n file: File\nlockable: boolean,\noverwrite: boolean" });
       }
-
       const localPath = files.file.path;
       const lockable = fields.lockable;
       const overwrite = fields.overwrite;
@@ -135,26 +134,42 @@ webServer.post('/upload', (req, res) => {
             }
           });
         } else if (fileRows.length === 1) {
-          //check for lock
           if (overwrite === 'true') {
-            console.log(clientLog + "Upload with overwrite requested for " + fileName)
-            request.post({ url: 'http://' + fileRows[0].server_ip + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
+            const encodedFileName = querystring.stringify({ fileName });
+            request("http://" + LOCK_SERVER + "/checkForLock?" + encodedFileName, (err, lockRes, lockBody) => {
               if (err) {
-                console.error(err);
-                return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName + err});;
+                console.error(err)
               }
-              if (clusterBody) {
-                const parsedClusterBody = JSON.parse(clusterBody);
-                if (parsedClusterBody.success) {
-                  if (++roundRobin >= CLUSTER_SERVERS.length) {
-                    roundRobin = 0;
-                  }
-                  return res.status(200).send({ success: true, message: fileName + " successfully overwritten." + (lockable ? " (LOCKABLE)" : "")});
+              if (lockRes) {
+                const parsedLockBody = JSON.parse(lockBody);
+                if (lockRes.statusCode === 200 && parsedLockBody.locked) {
+                  return res.status(400).send({ success: false, message: fileName + " is currently locked and cannot be overwritten." });
+                } else if (lockRes.statusCode === 200 && !parsedLockBody.locked) {
+                  console.log(clientLog + "Upload with overwrite requested for " + fileName)
+                  request.post({ url: 'http://' + fileRows[0].server_ip + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
+                    if (err) {
+                      console.error(err);
+                      return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName + err});;
+                    }
+                    if (clusterBody) {
+                      const parsedClusterBody = JSON.parse(clusterBody);
+                      if (parsedClusterBody.success) {
+                        if (++roundRobin >= CLUSTER_SERVERS.length) {
+                          roundRobin = 0;
+                        }
+                        return res.status(200).send({ success: true, message: fileName + " successfully overwritten." + (lockable ? " (LOCKABLE)" : "")});
+                      } else {
+                        return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName });
+                      }
+                    } else {
+                      return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName });
+                    }
+                  });
                 } else {
-                  return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName });
+                  return res.status(500).send({ success: false, message: 'Failed to check for lock on ' + fileName + " for overwriting." });
                 }
               } else {
-                return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName });
+                return res.status(500).send({ success: false, message: 'Failed to check for lock on ' + fileName + " for overwriting." });
               }
             });
           } else {
@@ -186,18 +201,36 @@ webServer.delete('/files/:fileName', (req, res) => {
           return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
         }
         if (rows[0] && rows.length === 1 && rows[0].file_name === fileName) {
-          const clientLog = "[" + req.ip + "] ";
-          const clusterServerIP = rows[0].server_ip;
           const encodedFileName = querystring.stringify({ fileName });
-          console.log(clientLog + "Delete requested for " + fileName);
-          db.run("DELETE FROM directory WHERE file_name=?", fileName, (err) => {
+          request("http://" + LOCK_SERVER + "/checkForLock?" + encodedFileName, (err, lockRes, lockBody) => {
             if (err) {
-              console.error(err);
-              return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
+              console.error(err)
+            }
+            if (lockRes) {
+              const parsedLockBody = JSON.parse(lockBody);
+              console.log(parsedLockBody);
+              if (lockRes.statusCode === 200 && parsedLockBody.locked) {
+                return res.status(400).send({ success: false, message: fileName + " is currently locked and cannot be deleted." });
+              } else if (lockRes.statusCode === 200 && !parsedLockBody.locked) {
+                const clientLog = "[" + req.ip + "] ";
+                const clusterServerIP = rows[0].server_ip;
+                const encodedFileName = querystring.stringify({ fileName });
+                console.log(clientLog + "Delete requested for " + fileName);
+                db.run("DELETE FROM directory WHERE file_name=?", fileName, (err) => {
+                  if (err) {
+                    console.error(err);
+                    return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
+                  }
+                });
+                res.header('x-access-token', token);
+                return res.redirect('http://' + clusterServerIP + '/delete?' + encodedFileName);
+              } else {
+                return res.status(500).send({ success: false, message: 'Failed to check for lock on ' + fileName + " for deletion." });
+              }
+            } else {
+              return res.status(500).send({ success: false, message: 'Failed to check for lock on ' + fileName + " for deletion." });
             }
           });
-          res.header('x-access-token', token);
-          return res.redirect('http://' + clusterServerIP + '/delete?' + encodedFileName);
         } else {
           return res.status(404).send({ success: false, message: fileName + " could not be found in the system." });
         }

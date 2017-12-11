@@ -85,7 +85,7 @@ lockServer.get('/unlock', (req, res) => {
       return res.sendStatus(500);
     }
     if (value) {
-      cache.del(fileName, (err) => {
+      fileLocks.del(fileName, (err) => {
         if (err) {
           console.error(err);
           return res.status(500).send({ success: true, message: "Failed to release lock on " + fileName });
@@ -105,11 +105,10 @@ lockServer.get('/checkForLock', (req, res) => {
       console.error(err);
       return res.status(500).send({ success: false, message: "Failed to check for lock on " + fileName });
     }
-    console.log(value);
     if (value) {
-      return res.status(200).send({ sucess: true, locked: true, message: fileName + " is locked." });
+      return res.status(200).send({ success: true, locked: true, message: fileName + " is locked." });
     } else {
-      return res.status(200).send({ lock: false, locked: false, message: fileName + " is not locked." });
+      return res.status(200).send({ success: false, locked: false, message: fileName + " is not locked." });
     }
   });
 });

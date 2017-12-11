@@ -68,27 +68,57 @@ clusterServer.post('/upload', (req, res) => {
       fileServerID: roundRobin,
       overwrite: overwrite,
     };
-    if (!overwrite) {
-    var stmt = db.prepare('INSERT INTO directory (file_name, server_ip) VALUES (?, ?)');
-    stmt.run(fileName, FILE_SERVERS[roundRobin]);
-    stmt.finalize();
-    }
-    request.post({ url: 'http://' + FILE_SERVERS[roundRobin] + '/upload', formData: form }, (err, fileRes, fileBody) => {
+
+    db.all("SELECT * FROM directory WHERE file_name=?", fileName, (err, rows) => {
       if (err) {
-        return console.error(err);
+        console.error(err);
+        return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
       }
-      if (fileBody) {
-        const parsedFileBody = JSON.parse(fileBody);
-        if (parsedFileBody.success) {
-          if (++roundRobin >= FILE_SERVERS.length) {
-            roundRobin = 0;
-          }
-          return res.status(200).send({ success: true, message: fileName + " successfully uploaded."});
-        } else {
-          return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+      if (rows[0] && rows.length === 1 && rows[0].file_name === fileName) {
+        if (overwrite) {
+          request.post({ url: 'http://' + FILE_SERVERS[roundRobin] + '/upload', formData: form }, (err, fileRes, fileBody) => {
+            if (err) {
+              return console.error(err);
+            }
+            if (fileBody) {
+              const parsedFileBody = JSON.parse(fileBody);
+              if (parsedFileBody.success) {
+                if (++roundRobin >= FILE_SERVERS.length) {
+                  roundRobin = 0;
+                }
+                return res.status(200).send({ success: true, message: fileName + " successfully uploaded."});
+              } else {
+                return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+              }
+            } else {
+              return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+            }
+          });
+        }  else {
+          return res.status(400).send({ success: false, message: fileName + " already exists. Pass overwrite: true in your POST request body (multipart/form-data) to overwrite the existing file." });
         }
       } else {
-        return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+        var stmt = db.prepare('INSERT INTO directory (file_name, server_ip) VALUES (?, ?)');
+        stmt.run(fileName, FILE_SERVERS[roundRobin]);
+        stmt.finalize();
+        request.post({ url: 'http://' + FILE_SERVERS[roundRobin] + '/upload', formData: form }, (err, fileRes, fileBody) => {
+          if (err) {
+            return console.error(err);
+          }
+          if (fileBody) {
+            const parsedFileBody = JSON.parse(fileBody);
+            if (parsedFileBody.success) {
+              if (++roundRobin >= FILE_SERVERS.length) {
+                roundRobin = 0;
+              }
+              return res.status(200).send({ success: true, message: fileName + " successfully uploaded."});
+            } else {
+              return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+            }
+          } else {
+            return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+          }
+        });
       }
     });
   });
@@ -103,16 +133,15 @@ clusterServer.get('/download', (req, res) => {
     if (err) {
       return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
-    const clientLog = "[" + req.ip + "] ";
-    if (req.query.fileName){
+    if (req.query.fileName) {
       const fileName = req.query.fileName;
-      db.each("SELECT * FROM directory WHERE file_name=?", fileName, (err, row) => {
+      db.all("SELECT * FROM directory WHERE file_name=?", fileName, (err, rows) => {
         if (err) {
           console.error(err);
           return res.status(500).send({ success: false, message: "Failed to download " + fileName + err });
         }
-        if (row.file_name === fileName) {
-          const fileServerIP = row.server_ip;
+        if (rows[0] && rows.length === 1 && rows[0].file_name === fileName) {
+          const fileServerIP = rows[0].server_ip;
           const encodedFileName = querystring.stringify({ fileName });
           console.log("Download requested for " + fileName);
           res.header('x-access-token', token);
@@ -138,13 +167,13 @@ clusterServer.get('/delete', (req, res) => {
     }
     if (req.query.fileName) {
       const fileName = req.query.fileName;
-      db.each("SELECT * FROM directory WHERE file_name=?", fileName, (err, row) => {
+      db.all("SELECT * FROM directory WHERE file_name=?", fileName, (err, rows) => {
         if (err) {
           console.error(err);
           return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
         }
-        if (row.file_name === fileName) {
-          const fileServerIP = row.server_ip;
+        if (rows[0] && rows.length === 1 && rows[0].file_name === fileName) {
+          const fileServerIP = rows[0].server_ip;
           const encodedFileName = querystring.stringify({ fileName });
           console.log("Delete requested for " + fileName);
           db.run("DELETE FROM directory WHERE file_name=?", fileName, (err) => {

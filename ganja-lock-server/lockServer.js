@@ -34,31 +34,45 @@ lockServer.use(bodyParser.urlencoded({ extended: false }));
 lockServer.use(bodyParser.json());
 
 lockServer.get('/lock', (req, res) => {
-  const fileName = req.query.fileName;
-  const lockTimeInSeconds = req.query.lockTime ? parseInt(req.query.lockTime) : DEFAULT_LOCK_TIME;
-  fileLocks.get(fileName, (err, value) => {
+  const token = req.headers['x-access-token'];
+  if (!token) {
+    return res.status(401).send({ success: false, message: 'No token provided.' });
+  }
+  jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      console.error(err);
-      return res.sendStatus(500);
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
-    if (value) {
-      return res.status(400).send({ success: false, message: "This file has already been locked."});
-    } else {
-      if (lockTimeInSeconds && lockTimeInSeconds > 86400) {
-        return res.status(400).send({ success: false, message: "Lock time must not exceed " + MAX_LOCK_TIME + " seconds."});
-      }
-      fileLocks.set(fileName, { locked: true }, lockTimeInSeconds, (err, value) => {
+    if (req.query.fileName) {
+      const fileName = req.query.fileName;
+      console.log(req.query);
+      const lockTimeInSeconds = req.query.lockTime ? parseInt(req.query.lockTime) : DEFAULT_LOCK_TIME;
+      fileLocks.get(fileName, (err, value) => {
         if (err) {
           console.error(err);
           return res.sendStatus(500);
         }
         if (value) {
-          console.log(LOCKLOG + lockTimeInSeconds + " seconds on " + fileName);
-          return res.status(200).send({ success: true, message: "Lock granted for " + fileName + " for " + (lockTimeInSeconds ? lockTimeInSeconds : DEFAULT_LOCK_TIME) + " seconds."});
+          return res.status(400).send({ success: false, message: "This file has already been locked."});
         } else {
-          return res.sendStatus(400);
+          if (lockTimeInSeconds && lockTimeInSeconds > 86400) {
+            return res.status(400).send({ success: false, message: "Lock time must not exceed " + MAX_LOCK_TIME + " seconds."});
+          }
+          fileLocks.set(fileName, { locked: true }, lockTimeInSeconds, (err, value) => {
+            if (err) {
+              console.error(err);
+              return res.sendStatus(500);
+            }
+            if (value) {
+              console.log(LOCKLOG + lockTimeInSeconds + " seconds on " + fileName);
+              return res.status(200).send({ success: true, message: "Lock granted for " + fileName + " for " + (lockTimeInSeconds ? lockTimeInSeconds : DEFAULT_LOCK_TIME) + " seconds."});
+            } else {
+              return res.sendStatus(400);
+            }
+          });
         }
       });
+    } else {
+      return res.status(400).send({ success: false, message: "No file name provided." });
     }
   });
 });
@@ -71,7 +85,13 @@ lockServer.get('/unlock', (req, res) => {
       return res.sendStatus(500);
     }
     if (value) {
-      //delete entry
+      cache.del(fileName, (err) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).send({ success: true, message: "Failed to release lock on " + fileName });
+        }
+        return res.status(200).send({ success: true, message: "Lock released for " + fileName });
+      });
     } else {
       return res.status(400).send({ success: false, message: "There is no lock on this file."});
     }
@@ -83,12 +103,13 @@ lockServer.get('/checkForLock', (req, res) => {
   fileLocks.get(fileName, (err, value) => {
     if (err) {
       console.error(err);
+      return res.status(500).send({ success: false, message: "Failed to check for lock on " + fileName });
     }
     console.log(value);
     if (value) {
-      return res.status(200).send(value);
+      return res.status(200).send({ sucess: true, locked: true, message: fileName + " is locked." });
     } else {
-      return res.status(200).send({ locked: false });
+      return res.status(200).send({ lock: false, locked: false, message: fileName + " is not locked." });
     }
   });
 });

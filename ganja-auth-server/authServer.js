@@ -35,52 +35,52 @@ authServer.use(bodyParser.urlencoded({ extended: false }));
 authServer.use(bodyParser.json());
 
 authServer.post('/authenticate', (req, res) => {
-  const clientLog = "[" + req.ip + "] ";
-  if (!req.body.email || !req.body.password) {
-    return res.send(400);
-  }
   const email = req.body.email;
   const password = req.body.password;
-  db.all("SELECT email, password FROM user", (err, rows) => {
+  db.all("SELECT email, password FROM user WHERE email=?", email, (err, rows) => {
     if (err) {
       console.error(err);
-      return res.sendStatus(500);
+      return res.status(500).send({ success: false, message: 'Failed to authenticate.' + err});;;
     }
-    if (rows) {
-      const userRow = rows.filter((row) => {
-        return row.email === email;
-      });
-      if (userRow.length === 1) {
-        const isPasswordValid = bcrypt.compareSync(password, userRow[0].password);
-        if (isPasswordValid) {
-          const token = jwt.sign({ email }, SECRET, { expiresIn: 86400 });
-          console.log(email + " was authenticated successfully.");
-          res.status(200).send({ auth: true, token });
-        } else {
-          return res.sendStatus(401);
-        }
+    const userRow = rows.filter((row) => {
+      return row.email === email;
+    });
+    if (userRow.length === 1) {
+      const isPasswordValid = bcrypt.compareSync(password, userRow[0].password);
+      if (isPasswordValid) {
+        const token = jwt.sign({ email }, SECRET, { expiresIn: 86400 });
+        console.log(email + " was authenticated successfully.");
+        return res.status(200).send({ success: true, message: email + ' successfully logged in.', token });
       } else {
-        return res.sendStatus(400);
+        return res.status(401).send({ success: false, message: 'Invalid password.' });
       }
     } else {
-      return res.sendStatus(400);
+      return res.status(400).send({ success: false, message: 'User ' + email + ' does not exist.' });
     }
   });
 });
 
 authServer.post('/register', (req, res) => {
-  const userEmail = req.body.email;
+  const email = req.body.email;
   const hashedUserPassword = bcrypt.hashSync(req.body.password, 8);
-  try {
-    var stmt = db.prepare('INSERT INTO user (email, password) VALUES (?, ?)');
-    stmt.run(userEmail, hashedUserPassword);
-    stmt.finalize();
-    console.log(userEmail + " registered succesfully.");
-    return res.sendStatus(200);
-  } catch (err) {
-    console.error(err);
-    return res.sendStatus(400);
-  }
+  db.all("SELECT email FROM user WHERE email=?", email, (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send({ success: false, message: 'Failed to register.' + err });
+    }
+    const userRow = rows.filter((row) => {
+      return row.email === email;
+    });
+    if (userRow.length === 0) {
+      var stmt = db.prepare('INSERT INTO user (email, password) VALUES (?, ?)');
+      stmt.run(email, hashedUserPassword);
+      stmt.finalize();
+      console.log(email + " registered succesfully.");
+      return res.status(200).send({ success: true, message: email + " registered succesfully." });
+    } else {
+      return res.status(400).send({ success: false, message: email + " already exists." });
+    }
+  });
 });
 
 authServer.listen(PORT, (err) => {

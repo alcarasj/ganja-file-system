@@ -4,4 +4,4 @@ del "C:\Users\jcalc\Documents\ganja-file-system\ganja-cluster-server\CLUSTER-0.d
 del "C:\Users\jcalc\Documents\ganja-file-system\ganja-cluster-server\CLUSTER-1.db"
 del "C:\Users\jcalc\Documents\ganja-file-system\ganja-cluster-server\CLUSTER-2.db"
 del "C:\Users\jcalc\Documents\ganja-file-system\ganja-file-server\CLUSTER-0.db"
-rd /s /q "C:\Users\jcalc\Documents\ganja-file-system\ganja-file-server\data"
+rd /s /q "C:\Users\jcalc\Documents\ganja-file-system\ganja-file-server\data\"

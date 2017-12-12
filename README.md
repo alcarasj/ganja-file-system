@@ -9,7 +9,7 @@ This service requires **Node** and **NPM** in order to run  (built and tested us
 ### Linux/Mac
 COMING SOON LOL
 ## Architecture
-COMING SOON LOL
+![Diagram](docs/ganja-architecture-diagram.png)
 ## Features
 ### Distributed Transparent File Access
 * Upload (with overwrite option) and download system.

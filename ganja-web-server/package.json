@@ -4,6 +4,7 @@
   "description": "",
   "main": "webServer.js",
   "scripts": {
+    "start": "node webServer.js",
     "test": "node webServer.js"
   },
   "author": "Jerico Alcaras",

@@ -4,6 +4,7 @@
   "description": "",
   "main": "fileServer.js",
   "scripts": {
+    "start": "npm-run-all -p FILES-0 FILES-1 FILES-2 FILES-3 FILES-4 FILES-5 FILES-6 FILES-7 FILES-8",
     "test": "npm-run-all -p FILES-0 FILES-1 FILES-2 FILES-3 FILES-4 FILES-5 FILES-6 FILES-7 FILES-8",
     "FILES-0": "node fileServer.js 8090",
     "FILES-1": "node fileServer.js 8091",

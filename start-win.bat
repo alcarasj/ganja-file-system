@@ -1,0 +1,10 @@
+cd "ganja-file-server"
+start start-file-server-win.bat
+cd "../ganja-cluster-server"
+start start-cluster-server-win.bat
+cd "../ganja-web-server"
+start start-web-server-win.bat
+cd "../ganja-auth-server"
+start start-auth-server-win.bat
+cd "../ganja-lock-server"
+start start-lock-server-win.bat

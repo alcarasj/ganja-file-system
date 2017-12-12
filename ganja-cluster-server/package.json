@@ -4,7 +4,7 @@
   "description": "",
   "main": "clusterServer.js",
   "scripts": {
-    "start": "node clusterServer.js",
+    "start": "npm-run-all -p CLUSTER-0 CLUSTER-1 CLUSTER-2",
     "test": "npm-run-all -p CLUSTER-0 CLUSTER-1 CLUSTER-2",
     "CLUSTER-0": "node clusterServer.js 8081",
     "CLUSTER-1": "node clusterServer.js 8082",

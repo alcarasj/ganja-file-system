@@ -4,6 +4,7 @@
   "description": "",
   "main": "lockServer.js",
   "scripts": {
+    "start": "node lockServer.js",
     "test": "node lockServer.js"
   },
   "author": "Jerico Alcaras",

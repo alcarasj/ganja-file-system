@@ -4,6 +4,7 @@
   "description": "",
   "main": "authServer.js",
   "scripts": {
+    "start": "node authServer.js",
     "test": "node authServer.js"
   },
   "author": "Jerico Alcaras",

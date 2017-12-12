@@ -1,6 +1,3 @@
-# Ganja File System (CS4400 Individual Project Task)
-### By Jerico Alcaras, 14317110
-## Run using NPM	
 This service requires **Node** and **NPM** in order to run (built and tested using Node 8.2.1 and NPM 5.5.1).
 # Ganja File System (CS4400 Individual Project Task)
 ### By Jerico Alcaras, 14317110
@@ -20,6 +17,7 @@ COMING SOON LOL
 * All files are identified by their name.
 * Files are stored by instances of `ganja-file-server` in their respective `data` folders.
 ### Security Service
+* Authentication and authorization, provided by `ganja-auth-server` using JWT (https://www.npmjs.com/package/jwt).
 * On successful login, a JSON web token is returned that must be used in the `x-access-token` header for every HTTP request sent to all routes.
 ### Directory Service
 * Flat file system, each successfully uploaded file will have a server IP associated with it.

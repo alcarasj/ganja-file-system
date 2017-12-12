@@ -12,6 +12,7 @@ const formidable = require('formidable');
 const querystring = require("querystring");
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const Cacheman = require('cacheman');
 
 if (process.argv.length <= 2) {
   console.log("Usage: " + __filename + " PORT_NUMBER");
@@ -21,6 +22,7 @@ if (process.argv.length <= 2) {
 const PORT = process.argv[2];
 const TMPDIR = './tmp';
 const AUTH_SERVER = '127.0.0.1:8070';
+const CACHE_TTL = 300;
 //This secret is just used for testing purposes. In production, use environment variable.
 const SECRET = 'yallmothafuckasneedjesus';
 
@@ -53,6 +55,7 @@ if (!fs.existsSync(TMPDIR)) {
 }
 
 var clusterServer = express();
+var cache = new Cacheman({ ttl: CACHE_TTL });
 clusterServer.use(bodyParser.urlencoded({ extended: false }));
 clusterServer.use(bodyParser.json());
 
@@ -72,7 +75,7 @@ clusterServer.post('/upload', (req, res) => {
     db.all("SELECT * FROM directory WHERE file_name=?", fileName, (err, rows) => {
       if (err) {
         console.error(err);
-        return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
+        return res.status(500).send({ success: false, message: "Failed to upload " + fileName + err });
       }
       if (rows[0] && rows.length === 1 && rows[0].file_name === fileName) {
         if (overwrite) {

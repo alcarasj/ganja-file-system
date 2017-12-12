@@ -12,12 +12,14 @@ const formidable = require('formidable');
 const querystring = require("querystring");
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const Cacheman = require('cacheman');
 
 const PORT = 8080;
 const TMPDIR = './tmp';
 const CLUSTER_SERVERS = ['127.0.0.1:8081', '127.0.0.1:8082', '127.0.0.1:8083'];
 const AUTH_SERVER = '127.0.0.1:8070';
 const LOCK_SERVER = '127.0.0.1:8071';
+const CACHE_TTL = 300;
 //This secret is just used for testing purposes. In production, use environment variable.
 const SECRET = 'yallmothafuckasneedjesus';
 var roundRobin = 0;
@@ -34,6 +36,7 @@ if (!fs.existsSync(TMPDIR)) {
 }
 
 var webServer = express();
+var cache = new Cacheman({ ttl: CACHE_TTL });
 webServer.use(bodyParser.urlencoded({ extended: false }));
 webServer.use(bodyParser.json());
 
@@ -125,6 +128,11 @@ webServer.post('/upload', (req, res) => {
                 if (++roundRobin >= CLUSTER_SERVERS.length) {
                   roundRobin = 0;
                 }
+                cache.set(fileName, localPath, (err, value) => {
+                  if (err) {
+                    console.error(err);
+                  }
+                });
                 return res.status(200).send({ success: true, message: fileName + " successfully uploaded." + (lockable ? " (LOCKABLE)" : "")});
               } else {
                 return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
@@ -157,6 +165,11 @@ webServer.post('/upload', (req, res) => {
                         if (++roundRobin >= CLUSTER_SERVERS.length) {
                           roundRobin = 0;
                         }
+                        cache.set(fileName, localPath, (err, value) => {
+                          if (err) {
+                            console.error(err);
+                          }
+                        });
                         return res.status(200).send({ success: true, message: fileName + " successfully overwritten." + (lockable ? " (LOCKABLE)" : "")});
                       } else {
                         return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName });
@@ -208,7 +221,6 @@ webServer.delete('/files/:fileName', (req, res) => {
             }
             if (lockRes) {
               const parsedLockBody = JSON.parse(lockBody);
-              console.log(parsedLockBody);
               if (lockRes.statusCode === 200 && parsedLockBody.locked) {
                 return res.status(400).send({ success: false, message: fileName + " is currently locked and cannot be deleted." });
               } else if (lockRes.statusCode === 200 && !parsedLockBody.locked) {
@@ -223,6 +235,11 @@ webServer.delete('/files/:fileName', (req, res) => {
                   }
                 });
                 res.header('x-access-token', token);
+                cache.del(fileName, (err) => {
+                  if (err) {
+                    console.error(err);
+                  }
+                })
                 return res.redirect('http://' + clusterServerIP + '/delete?' + encodedFileName);
               } else {
                 return res.status(500).send({ success: false, message: 'Failed to check for lock on ' + fileName + " for deletion." });

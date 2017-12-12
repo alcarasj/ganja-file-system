@@ -70,11 +70,11 @@ fileServer.get('/delete', (req, res) => {
 fileServer.get('/download', (req, res) => {
   const token = req.headers['x-access-token'];
   if (!token) {
-    return res.status(401).send({ auth: false, message: 'No token provided.' });
+    return res.status(401).send({ success: false, message: 'No token provided.' });
   }
   jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
     if (req.query.fileName) {
       const fileName = req.query.fileName;

@@ -1,8 +1,7 @@
-This service requires **Node** and **NPM** in order to run (built and tested using Node 8.2.1 and NPM 5.5.1).
 # Ganja File System (CS4400 Individual Project Task)
 ### By Jerico Alcaras, 14317110
 ## Run using NPM
-This service requires **Node** and **NPM** in order to run.
+This service requires **Node** and **NPM** in order to run  (built and tested using Node 8.2.1 and NPM 5.5.1).
 ### Windows
 1. Clone the repository.
 2. Run `start-win.bat`. This runs all the servers by executing their respective `npm start` scripts (make sure your Node installation is at C:/Program Files/nodejs). Five command prompts should appear.

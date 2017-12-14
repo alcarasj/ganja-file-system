@@ -43,8 +43,9 @@ lockServer.get('/lock', (req, res) => {
       return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
     if (req.query.fileName) {
+      const decoded = jwt.decode(token);
+      const user = decoded.email;
       const fileName = req.query.fileName;
-      console.log(req.query);
       const lockTimeInSeconds = req.query.lockTime ? parseInt(req.query.lockTime) : DEFAULT_LOCK_TIME;
       fileLocks.get(fileName, (err, value) => {
         if (err) {
@@ -57,7 +58,7 @@ lockServer.get('/lock', (req, res) => {
           if (lockTimeInSeconds && lockTimeInSeconds > 86400) {
             return res.status(400).send({ success: false, message: "Lock time must not exceed " + MAX_LOCK_TIME + " seconds."});
           }
-          fileLocks.set(fileName, { locked: true }, lockTimeInSeconds, (err, value) => {
+          fileLocks.set(fileName, { locked: true, user: user }, lockTimeInSeconds, (err, value) => {
             if (err) {
               console.error(err);
               return res.sendStatus(500);
@@ -78,39 +79,74 @@ lockServer.get('/lock', (req, res) => {
 });
 
 lockServer.get('/unlock', (req, res) => {
-  const fileName = req.query.fileName;
-  fileLocks.get(fileName, (err, value) => {
+  const token = req.headers['x-access-token'];
+  if (!token) {
+    return res.status(401).send({ success: false, message: 'No token provided.' });
+  }
+  jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      console.error(err);
-      return res.sendStatus(500);
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
-    if (value) {
-      fileLocks.del(fileName, (err) => {
+    if (req.query.fileName) {
+      const decoded = jwt.decode(token);
+      const user = decoded.email;
+      const fileName = req.query.fileName;
+      fileLocks.get(fileName, (err, value) => {
         if (err) {
           console.error(err);
-          return res.status(500).send({ success: true, message: "Failed to release lock on " + fileName });
+          return res.sendStatus(500);
         }
-        return res.status(200).send({ success: true, message: "Lock released for " + fileName });
+        if (value) {
+          fileLocks.del(fileName, (err) => {
+            if (err) {
+              console.error(err);
+              return res.status(500).send({ success: true, message: "Failed to release lock on " + fileName });
+            }
+            return res.status(200).send({ success: true, message: "Lock released for " + fileName });
+          });
+        } else {
+          return res.status(400).send({ success: false, message: "There is no lock on this file."});
+        }
       });
     } else {
-      return res.status(400).send({ success: false, message: "There is no lock on this file."});
+      return res.status(400).send({ success: false, message: "No file name provided." });
     }
   });
 });
 
 lockServer.get('/checkForLock', (req, res) => {
-  const fileName = req.query.fileName;
-  fileLocks.get(fileName, (err, value) => {
+  const token = req.headers['x-access-token'];
+  if (!token) {
+    return res.status(401).send({ success: false, message: 'No token provided.' });
+  }
+  jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      console.error(err);
-      return res.status(500).send({ success: false, message: "Failed to check for lock on " + fileName });
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
-    if (value) {
-      return res.status(200).send({ success: true, locked: true, message: fileName + " is locked." });
+    if (req.query.fileName) {
+      const decoded = jwt.decode(token);
+      const user = decoded.email;
+      const fileName = req.query.fileName;
+      fileLocks.get(fileName, (err, value) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).send({ success: false, message: "Failed to check for lock on " + fileName });
+        }
+        if (value && value.user !== user) {
+          return res.status(200).send({ success: true, locked: true, message: fileName + " is locked by " + value.user, modify: false });
+        } else if (value && value.user === user) {
+          return res.status(200).send({ success: true, locked: true, message: fileName + " is locked by the same user. Modification is allowed for this user.", modify: true });
+        } else {
+          return res.status(200).send({ success: true, locked: false, message: fileName + " is not locked.", modify: false });
+        }
+      });
     } else {
-      return res.status(200).send({ success: false, locked: false, message: fileName + " is not locked." });
+      return res.status(400).send({ success: false, message: "No file name provided." });
     }
   });
+
+
+
 });
 
 lockServer.listen(PORT, (err) => {

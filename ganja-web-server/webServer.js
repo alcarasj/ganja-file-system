@@ -144,15 +144,15 @@ webServer.post('/upload', (req, res) => {
         } else if (fileRows.length === 1) {
           if (overwrite === 'true') {
             const encodedFileName = querystring.stringify({ fileName });
-            request("http://" + LOCK_SERVER + "/checkForLock?" + encodedFileName, (err, lockRes, lockBody) => {
+            request({ url: "http://" + LOCK_SERVER + "/checkForLock?" + encodedFileName, headers: { 'x-access-token': token } }, (err, lockRes, lockBody) => {
               if (err) {
                 console.error(err)
               }
               if (lockRes) {
                 const parsedLockBody = JSON.parse(lockBody);
-                if (lockRes.statusCode === 200 && parsedLockBody.locked) {
+                if (lockRes.statusCode === 200 && !parsedLockBody.modify) {
                   return res.status(400).send({ success: false, message: fileName + " is currently locked and cannot be overwritten." });
-                } else if (lockRes.statusCode === 200 && !parsedLockBody.locked) {
+                } else if (lockRes.statusCode === 200 && parsedLockBody.modify) {
                   console.log(clientLog + "Upload with overwrite requested for " + fileName)
                   request.post({ url: 'http://' + fileRows[0].server_ip + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
                     if (err) {
@@ -215,15 +215,15 @@ webServer.delete('/files/:fileName', (req, res) => {
         }
         if (rows[0] && rows.length === 1 && rows[0].file_name === fileName) {
           const encodedFileName = querystring.stringify({ fileName });
-          request("http://" + LOCK_SERVER + "/checkForLock?" + encodedFileName, (err, lockRes, lockBody) => {
+          request({ url: "http://" + LOCK_SERVER + "/checkForLock?" + encodedFileName, headers: { 'x-access-token': token } }, (err, lockRes, lockBody) => {
             if (err) {
               console.error(err)
             }
             if (lockRes) {
               const parsedLockBody = JSON.parse(lockBody);
-              if (lockRes.statusCode === 200 && parsedLockBody.locked) {
+              if (lockRes.statusCode === 200 && !parsedLockBody.modify) {
                 return res.status(400).send({ success: false, message: fileName + " is currently locked and cannot be deleted." });
-              } else if (lockRes.statusCode === 200 && !parsedLockBody.locked) {
+              } else if (lockRes.statusCode === 200 && parsedLockBody.modify) {
                 const clientLog = "[" + req.ip + "] ";
                 const clusterServerIP = rows[0].server_ip;
                 const encodedFileName = querystring.stringify({ fileName });

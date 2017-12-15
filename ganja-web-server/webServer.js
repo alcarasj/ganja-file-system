@@ -29,7 +29,7 @@ var db = new sqlite3.Database('WEB.db', (err) => {
   }
   console.log("Connected to SQLite database.");
 });
-db.run("CREATE TABLE IF NOT EXISTS directory (file_name TEXT PRIMARY KEY, server_ip TEXT NOT NULL, lockable INTEGER NOT NULL DEFAULT 0)");
+db.run("CREATE TABLE IF NOT EXISTS directory (file_name TEXT PRIMARY KEY, lockable INTEGER NOT NULL DEFAULT 0)");
 
 if (!fs.existsSync(TMPDIR)) {
   fs.mkdirSync(TMPDIR);
@@ -101,7 +101,6 @@ webServer.post('/upload', (req, res) => {
       const form = {
         file: fs.createReadStream(localPath),
         fileName: fileName,
-        clusterServerID: roundRobin,
         overwrite: overwrite,
       };
       db.all("SELECT * FROM directory WHERE file_name=?", fileName, (err, rows) => {
@@ -113,40 +112,42 @@ webServer.post('/upload', (req, res) => {
           return row.file_name === fileName;
         });
         if (fileRows.length === 0) {
-          var stmt = db.prepare('INSERT INTO directory (file_name, server_ip, lockable) VALUES (?, ?, ?)');
-          stmt.run(fileName, CLUSTER_SERVERS[roundRobin], lockable ? 1 : 0);
+          var stmt = db.prepare('INSERT INTO directory (file_name, lockable) VALUES (?, ?)');
+          stmt.run(fileName, lockable ? 1 : 0);
           stmt.finalize();
-          console.log(clientLog + "Upload requested for " + fileName)
-          request.post({ url: 'http://' + CLUSTER_SERVERS[roundRobin] + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
-            if (err) {
-              console.error(err);
-              return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName + err});
-            }
-            if (clusterBody) {
-              const parsedClusterBody = JSON.parse(clusterBody);
-              if (parsedClusterBody.success) {
-                if (++roundRobin >= CLUSTER_SERVERS.length) {
-                  roundRobin = 0;
+          console.log(clientLog + "Upload requested for " + fileName);
+          try {
+            var uploads = 0;
+            for (var i = 0; i < CLUSTER_SERVERS.length; i++) {
+              request.post({ url: 'http://' + CLUSTER_SERVERS[i] + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
+                if (err) {
+                  console.error(err);
                 }
-                cache.set(fileName, localPath, (err, value) => {
-                  if (err) {
-                    console.error(err);
+                if (clusterBody) {
+                  const parsedClusterBody = JSON.parse(clusterBody);
+                  if (parsedClusterBody.success) {
+                    uploads++;
                   }
-                });
-                return res.status(200).send({ success: true, message: fileName + " successfully uploaded." + (lockable ? " (LOCKABLE)" : "")});
-              } else {
-                return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
-              }
-            } else {
-              return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName });
+                  if (uploads === CLUSTER_SERVERS.length) {
+                    cache.set(fileName, localPath, (err, value) => {
+                      if (err) {
+                        console.error(err);
+                      }
+                    });
+                    return res.status(200).send({ success: true, message: fileName + " successfully uploaded to all clusters." + (lockable ? " (LOCKABLE)" : "")});
+                  }
+                }
+              });
             }
-          });
+          } catch (err) {
+            return res.status(500).send({ success: false, message: 'Failed to upload ' + fileName + err });
+          }
         } else if (fileRows.length === 1) {
           if (overwrite === 'true') {
             const encodedFileName = querystring.stringify({ fileName });
             request({ url: "http://" + LOCK_SERVER + "/checkForLock?" + encodedFileName, headers: { 'x-access-token': token } }, (err, lockRes, lockBody) => {
               if (err) {
-                console.error(err)
+                console.error(err);
               }
               if (lockRes) {
                 const parsedLockBody = JSON.parse(lockBody);
@@ -154,30 +155,32 @@ webServer.post('/upload', (req, res) => {
                   return res.status(400).send({ success: false, message: fileName + " is currently locked and cannot be overwritten." });
                 } else if (lockRes.statusCode === 200 && parsedLockBody.modify) {
                   console.log(clientLog + "Upload with overwrite requested for " + fileName)
-                  request.post({ url: 'http://' + fileRows[0].server_ip + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
-                    if (err) {
-                      console.error(err);
-                      return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName + err});;
-                    }
-                    if (clusterBody) {
-                      const parsedClusterBody = JSON.parse(clusterBody);
-                      if (parsedClusterBody.success) {
-                        if (++roundRobin >= CLUSTER_SERVERS.length) {
-                          roundRobin = 0;
+                  try {
+                    var overwrites = 0;
+                    for (var i = 0; i < CLUSTER_SERVERS.length; i++) {
+                      request.post({ url: 'http://' + CLUSTER_SERVERS[i] + '/upload', formData: form }, (err, clusterRes, clusterBody) => {
+                        if (err) {
+                          console.error(err);
                         }
-                        cache.set(fileName, localPath, (err, value) => {
-                          if (err) {
-                            console.error(err);
+                        if (clusterBody) {
+                          const parsedClusterBody = JSON.parse(clusterBody);
+                          if (parsedClusterBody.success) {
+                            overwrites++;
                           }
-                        });
-                        return res.status(200).send({ success: true, message: fileName + " successfully overwritten." + (lockable ? " (LOCKABLE)" : "")});
-                      } else {
-                        return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName });
-                      }
-                    } else {
-                      return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName });
+                          if (overwrites === CLUSTER_SERVERS.length) {
+                            cache.set(fileName, localPath, (err, value) => {
+                              if (err) {
+                                console.error(err);
+                              }
+                            });
+                            return res.status(200).send({ success: true, message: fileName + " successfully overwritten at all clusters." + (lockable ? " (LOCKABLE)" : "")});
+                          }
+                        }
+                      });
                     }
-                  });
+                  } catch (err) {
+                    return res.status(500).send({ success: false, message: 'Failed to overwrite ' + fileName + err });
+                  }
                 } else {
                   return res.status(500).send({ success: false, message: 'Failed to check for lock on ' + fileName + " for overwriting." });
                 }
@@ -225,7 +228,6 @@ webServer.delete('/files/:fileName', (req, res) => {
                 return res.status(400).send({ success: false, message: fileName + " is currently locked and cannot be deleted." });
               } else if (lockRes.statusCode === 200 && parsedLockBody.modify) {
                 const clientLog = "[" + req.ip + "] ";
-                const clusterServerIP = rows[0].server_ip;
                 const encodedFileName = querystring.stringify({ fileName });
                 console.log(clientLog + "Delete requested for " + fileName);
                 db.run("DELETE FROM directory WHERE file_name=?", fileName, (err) => {
@@ -239,8 +241,25 @@ webServer.delete('/files/:fileName', (req, res) => {
                   if (err) {
                     console.error(err);
                   }
-                })
-                return res.redirect('http://' + clusterServerIP + '/delete?' + encodedFileName);
+                });
+                try {
+                  var deletes = 0;
+                  for (var i = 0; i < CLUSTER_SERVERS.length; i++) {
+                    request({ url: "http://" + CLUSTER_SERVERS[i] + "/delete?" + encodedFileName, headers: { 'x-access-token': token } }, (err, clusterRes, clusterBody) => {
+                      if (err) {
+                        console.error(err);
+                      }
+                      if (clusterRes && clusterRes.statusCode === 200) {
+                        deletes++;
+                      }
+                      if (deletes === CLUSTER_SERVERS.length) {
+                        return res.status(200).send({ success: true, message: fileName + " successfully deleted." });
+                      }
+                    });
+                  }
+                } catch (err) {
+                  return res.status(500).send({ success: false, message: 'Failed to check for lock on ' + fileName + " for deletion." + err });
+                }
               } else {
                 return res.status(500).send({ success: false, message: 'Failed to check for lock on ' + fileName + " for deletion." });
               }
@@ -276,7 +295,10 @@ webServer.get('/files/:fileName', (req, res) => {
           return res.status(500).send({ success: false, message: "Failed to download " + fileName + err });
         }
         if (rows[0] && rows.length === 1 && rows[0].file_name === fileName) {
-          const clusterServerIP = rows[0].server_ip;
+          if (++roundRobin >= CLUSTER_SERVERS.length) {
+            roundRobin = 0;
+          }
+          const clusterServerIP = CLUSTER_SERVERS[roundRobin];
           const encodedFileName = querystring.stringify({ fileName });
           console.log(clientLog + "Download requested for " + fileName);
           res.header('x-access-token', token);

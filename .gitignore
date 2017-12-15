@@ -1,4 +1,4 @@
 */node_modules/
 */tmp/
 *.db
-ganja-file-server/data/
+ganja-file-server/data-*/

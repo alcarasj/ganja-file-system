@@ -15,12 +15,43 @@ if (process.argv.length <= 2) {
 }
 
 const PORT = process.argv[2];
-const DATADIR = './data';
+//For testing on localhost with multiple file servers on each cluster
+switch (PORT) {
+  case '8090':
+    SERVER_ID = 0;
+    break;
+  case '8091':
+    SERVER_ID = 1;
+    break;
+  case '8092':
+    SERVER_ID = 2;
+    break;
+  case '8093':
+    SERVER_ID = 3;
+    break;
+  case '8094':
+    SERVER_ID = 4;
+    break;
+  case '8095':
+    SERVER_ID = 5;
+    break;
+  case '8096':
+    SERVER_ID = 6;
+    break;
+  case '8097':
+    SERVER_ID = 7;
+    break;
+  case '8098':
+    SERVER_ID = 8;
+    break;
+}
+const DATADIR = './data-' + SERVER_ID;
 //This secret is just used for testing purposes. In production, use environment variable.
 const SECRET = 'yallmothafuckasneedjesus';
 const READLOG = '[READ] ';
 const WRITELOG = '[WRITE] ';
 const DELETELOG = '[DELETE] ';
+var SERVER_ID;
 
 if (!fs.existsSync(DATADIR)) {
   fs.mkdirSync(DATADIR);

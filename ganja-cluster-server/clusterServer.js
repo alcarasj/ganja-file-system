@@ -27,22 +27,22 @@ const CACHE_TTL = 300;
 const SECRET = 'yallmothafuckasneedjesus';
 
 var FILE_SERVERS = [];
-var CLUSTER_ID;
+var SERVER_ID;
 
 //For testing on localhost with multiple cluster servers
 if (PORT === '8081') {
   FILE_SERVERS = ['127.0.0.1:8090', '127.0.0.1:8091', '127.0.0.1:8092'];
-  CLUSTER_ID = 0;
+  SERVER_ID = 0;
 } else if (PORT === '8082') {
   FILE_SERVERS = ['127.0.0.1:8093', '127.0.0.1:8094', '127.0.0.1:8095'];
-  CLUSTER_ID = 1;
+  SERVER_ID = 1;
 } else if (PORT === '8083') {
   FILE_SERVERS = ['127.0.0.1:8096', '127.0.0.1:8097', '127.0.0.1:8098'];
-  CLUSTER_ID = 2;
+  SERVER_ID = 2;
 }
 
 var roundRobin = 0;
-var db = new sqlite3.Database('CLUSTER-' + CLUSTER_ID + '.db', (err) => {
+var db = new sqlite3.Database('CLUSTER-' + SERVER_ID + '.db', (err) => {
   if (err) {
     console.error(err.message)
   }
@@ -185,8 +185,14 @@ clusterServer.get('/delete', (req, res) => {
               return res.status(500).send({ success: false, message: "Failed to delete " + fileName + err });
             }
           });
-          res.header('x-access-token', token);
-          return res.redirect('http://' + fileServerIP + '/delete?' + encodedFileName);
+          request({ url: "http://" + fileServerIP + "/delete?" + encodedFileName, headers: { 'x-access-token': token } }, (err, fileRes, fileBody) => {
+            if (err) {
+              console.error(err);
+            }
+            if (fileRes && fileRes.statusCode === 200) {
+              return res.status(200).send({ success: true, message: fileName + " successfully deleted." });
+            }
+          });
         } else {
           return res.status(404).send({ success: false, message: fileName + " could not be found in the system." });
         }

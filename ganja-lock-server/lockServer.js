@@ -137,7 +137,7 @@ lockServer.get('/checkForLock', (req, res) => {
         } else if (value && value.user === user) {
           return res.status(200).send({ success: true, locked: true, message: fileName + " is locked by the same user. Modification is allowed for this user.", modify: true });
         } else {
-          return res.status(200).send({ success: true, locked: false, message: fileName + " is not locked.", modify: false });
+          return res.status(200).send({ success: true, locked: false, message: fileName + " is not locked.", modify: true });
         }
       });
     } else {

@@ -6,12 +6,12 @@ $AUTH_SERVER ./ganja-auth-server/start-auth-server-unix.sh
 $LOCK_SERVER ./ganja-lock-server/start-lock-server-unix.sh
 $WEB_SERVER ./ganja-web-server/start-web-server-unix.sh
 
-chmod u+x **/*.sh
-source \"${FILE_SERVER}\" &
-source \"$CLUSTER_SERVER\" &
-source \"$AUTH_SERVER\" &
-source \"$LOCK_SERVER\" &
-source \"$WEB_SERVER\" &
+chmod u+x *.sh
+. \"${FILE_SERVER}\" &
+. \"${CLUSTER_SERVER}\" &
+. \"${AUTH_SERVER}\" &
+. \"${LOCK_SERVER}\" &
+. \"${WEB_SERVER}\" &
 wait
 	
 

@@ -1,13 +1,20 @@
 # Ganja File System (CS4400 Individual Project Task)
 ### By Jerico Alcaras, 14317110
 ## Run using NPM
-This service requires **Node** and **NPM** in order to run  (built and tested using Node 8.2.1 and NPM 5.5.1).
+This service requires **Node** and **NPM** in order to run (built and tested using Node 8.2.1 and NPM 5.5.1).
 ### Windows
 1. Clone the repository.
 2. Run `start-win.bat`. This runs all the servers by executing their respective `npm start` scripts (make sure your Node installation is at C:/Program Files/nodejs). Five command prompts should appear and start installing Node modules, then start instances of each server.
 3. Connect to `localhost:8080` and use the routes as described in `docs/ganja-API.pdf`.
 ### Linux/Mac
-COMING SOON LOL
+1. Clone the repository.
+2. Open a terminal and `cd` to the repository.
+3. `chmod +x *.sh`
+4. `./start-unix.sh`
+5. Connect to `localhost:8080` and use the routes as described in `docs/ganja-API.pdf`.
+### Scripts
+Scripts for deleting all the data in the file system: `delete-all-data-win.bat` (Windows) or `delete-all-data-unix.sh` (Linux/Mac).
+Scripts for removing Node modules in all servers: `clean-win.bat` (Windows) or `clean-unix.sh` (Linux/Mac).
 ## Architecture
 ![Diagram](docs/ganja-architecture-diagram.png)
 ## Features
@@ -15,6 +22,7 @@ COMING SOON LOL
 * Upload (with overwrite option), delete and download system.
 * All files are uniquely identified by their name.
 * Files are stored by instances of `ganja-file-server` in their respective `data` folders.
+* `ganja-web-server` handles all use cases and serves as a client proxy.
 ### Security Service
 * Authentication and authorization, provided by `ganja-auth-server` using JWT (https://www.npmjs.com/package/jwt).
 * On successful login, a JSON web token is returned that must be used in the `x-access-token` header for every HTTP request sent to all routes.
@@ -23,8 +31,8 @@ COMING SOON LOL
 * Implemented at the `ganja-cluster-server` level using local SQLite databases.
 ### Replication
 * `ganja-web-server` is connected to multiple instances of `ganja-cluster-server`, and each `ganja-cluster-server` is connected to multiple instances of `ganja-file-server`.
-* Files are uploaded, overwritten and deleted at all clusters. 
-* File downloads are served via round-robin on instances of `ganja-cluster-server` as a naive form of load-balancing.  
+* Files are replicated (uploaded, overwritten and deleted) across all clusters. 
+* File downloads are served via round-robin on instances of `ganja-cluster-server` as a naive form of load-balancing.
 ### Caching
 * Caching is implemented at the `ganja-web-server` level using Cacheman (https://www.npmjs.com/package/cacheman).
 * Every upload is cached for faster download, with a TTL of 5 minutes.

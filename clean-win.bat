@@ -1,0 +1,5 @@
+rd /s /q "ganja-file-server\node_modules"
+rd /s /q "ganja-auth-server\node_modules"
+rd /s /q "ganja-lock-server\node_modules"
+rd /s /q "ganja-cluster-server\node_modules"
+rd /s /q "ganja-web-server\node_modules"

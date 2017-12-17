@@ -13,8 +13,8 @@ This service requires **Node** and **NPM** in order to run (built and tested usi
 4. `./start-unix.sh`
 5. Connect to `localhost:8080` and use the routes as described in `docs/ganja-API.pdf`.
 ### Scripts
-Scripts for deleting all the data in the file system: `delete-all-data-win.bat` (Windows) or `delete-all-data-unix.sh` (Linux/Mac).
-Scripts for removing Node modules in all servers: `clean-win.bat` (Windows) or `clean-unix.sh` (Linux/Mac).
+* To delete all the data in the file system: `delete-all-data-win.bat` (Windows) or `delete-all-data-unix.sh` (Linux/Mac).
+* To remove Node modules in all servers (use this if servers fail to start): `clean-win.bat` (Windows) or `clean-unix.sh` (Linux/Mac).
 ## Architecture
 ![Diagram](docs/ganja-architecture-diagram.png)
 ## Features
@@ -37,7 +37,11 @@ Scripts for removing Node modules in all servers: `clean-win.bat` (Windows) or `
 * Caching is implemented at the `ganja-web-server` level using Cacheman (https://www.npmjs.com/package/cacheman).
 * Every upload is cached for faster download, with a TTL of 5 minutes.
 ### Transactions
-* COMING SOON (IN 1000 YEARS) LOL
+* If implemented, a transaction service would be placed at the `ganja-web-server` and `ganja-cluster-server` levels for upload, overwrite and delete routes.
+* All upload, overwrite and delete requests would be written to a spool-file (a .txt file, one entry per line) and files (stored in a folder named by hash-value) stored in the `tmp` folder.
+* Since all files are replicated across all clusters, then these routes will have an entry in the spool-file for each cluster.
+* A spool-file entry and their associated file are to be deleted once a success response is received from the entry's designated recipient server.
+* If transactions are not completed when there is a server failure, the sender server will read the spool-file on start-up (if it fails itself) or time-out (if a recipient server fails), and re-send the request.
 ### Lock Service
 * Lock-lease system, provided by `ganja-lock-server`, implemented using a key-value, cache-style system with TTL using Cacheman (https://www.npmjs.com/package/cacheman).
 * The user who has a lock on a file can modify it. Other users cannot modify it until this lock expires.

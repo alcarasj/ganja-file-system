@@ -23,6 +23,12 @@ If the above methods do not work, try the manual method.
 * To delete all the data in the file system: `delete-all-data-win.bat` (Windows) or `delete-all-data-unix.sh` (Linux/Mac).
 * To remove Node modules in all servers (use this if servers fail to start): `clean-win.bat` (Windows) or `clean-unix.sh` (Linux/Mac).
 ## Architecture
+### Overview
+* All servers use the Express framework (https://www.npmjs.com/package/express).
+* This file system is purely a back-end service that uses HTTP and JSON, and can be easily attached to a front-end application or be used out-of-the-box.
+* The file system is a single instance that is accessed by all users, meaning that all files stored in the system can be accessed by all users.
+* Another layer of abstraction can be added above the `ganja-file-system` level to support multiple instances of `ganja-file-system` (yes, `ganja-file-system` is a 420-friendly, stone-age Google Drive).
+### Diagram
 ![Diagram](docs/ganja-architecture-diagram.png)
 ## Features
 ### Distributed Transparent File Access

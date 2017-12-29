@@ -5,13 +5,20 @@ This service requires **Node** and **NPM** in order to run (built and tested usi
 ### Windows
 1. Clone the repository.
 2. Run `start-win.bat`. This runs all the servers by executing their respective `npm start` scripts (make sure your Node installation is at C:/Program Files/nodejs). Five command prompts should appear and start installing Node modules, then start instances of each server.
-3. Connect to `localhost:8080` and use the routes as described in `docs/ganja-API.pdf`.
+3. Connect to `localhost:8080` and use the routes as described at https://github.com/alcarasj/ganja-file-system#api.
 ### Linux/Mac
+Tested on Ubuntu 16.04 (might not work on Mac, sorry).
 1. Clone the repository.
 2. Open a terminal and `cd` to the repository.
 3. `chmod +x *.sh`
 4. `./start-unix.sh`
-5. Connect to `localhost:8080` and use the routes as described in `docs/ganja-API.pdf`.
+5. Connect to `localhost:8080` and use the routes as described at https://github.com/alcarasj/ganja-file-system#api.
+### Terminal
+If the above methods do not work, try the manual method.
+1. Open a terminal and `cd` to the repository.
+2. `cd` to `ganja-file-server`.
+3. `npm start`
+4. Repeat steps 1 to 3 for all the other server types.
 ### Scripts
 * To delete all the data in the file system: `delete-all-data-win.bat` (Windows) or `delete-all-data-unix.sh` (Linux/Mac).
 * To remove Node modules in all servers (use this if servers fail to start): `clean-win.bat` (Windows) or `clean-unix.sh` (Linux/Mac).
@@ -24,7 +31,7 @@ This service requires **Node** and **NPM** in order to run (built and tested usi
 * Files are stored by instances of `ganja-file-server` in their respective `data` folders.
 * `ganja-web-server` handles all use cases and serves as a client proxy.
 ### Security Service
-* Authentication and authorization, provided by `ganja-auth-server` using JWT (https://www.npmjs.com/package/jwt).
+* Authentication and authorization, provided by `ganja-auth-server` using JWT (https://www.npmjs.com/package/jsonwebtoken).
 * On successful login, a JSON web token is returned that must be used in the `x-access-token` header for every HTTP request sent to all routes.
 ### Directory Service
 * Flat file system, each successfully uploaded file will have the IP address of a `ganja-file-server` associated with it.
@@ -48,3 +55,21 @@ This service requires **Node** and **NPM** in order to run (built and tested usi
 * A lock request can have a user-defined lock time.
 * Maximum lock time is 24 hours.
 * Default lock time is 60 seconds if a lock time is not provided by the user.
+## API
+* All routes have been tested using Postman (https://www.getpostman.com/).
+* All routes accept HTTP requests with a JSON body. Required fields are marked with a `*`.
+* All routes will return a JSON response body containing `success`:`bool` and `message`:`string` (along with the rest of the data) to indicate whether or not the operation was performed successfully. The `message` will also help the user to identify errors. 
+* All routes except `/login` and `/register` will require a `token` string to be passed in the `x-access-token` request header for authorization.
+* `FILE_NAME` is the URI-encoded string of a file's name.
+
+|Route|Type|Description|Request Body|Response Body|
+|----|---|----|----|----|
+| `/login` |POST (urlencoded)|User login. Returns a token for use on all routes.|`email*`:`string`, `password*`:`string`|`token`:`string`|
+| `/register` |POST (urlencoded)|User registration.|`email*`:`string`, `password*`:`string`|-|
+| `/upload` |POST (form-data)|Uploads one file to the system, with option to overwrite if file already exists, and option to make file lockable or not.|`file*`:`File`, `overwrite`:`bool`, `lockable`:`bool`|-|
+| `/files` |GET|Lists all files that are currently in the system.|-|-|
+| `/files/FILE_NAME` |GET|Downloads a file from the system specified by `FILE_NAME`.|-|-|
+| `/files/FILE_NAME` |DELETE|Deletes a file from the system specified by `FILE_NAME`.|-|-|
+| `/lock` |GET|Locks a lockable file in the system for the user, with option for lock time in seconds (default is 60, max is 86400).|`fileName*`:`string`, `lockTime`:`int`|-|
+| `/unlock` |GET|Unlocks a file that was locked by the same user.|`fileName*`:`string`|-|
+| `/checkForLock` |GET|Checks if a file is currently locked. The `modify` response field indicates whether the file can be modified by the user (this is used on several routes).|`fileName*`:`string`|`locked`:`boolean`, `modify`:`boolean`|

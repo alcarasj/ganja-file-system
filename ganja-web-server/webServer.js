@@ -323,9 +323,9 @@ webServer.get('/lock', (req, res) => {
     if (err) {
       return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
-    if (req.query.fileName) {
-      const fileName = req.query.fileName;
-      const lockTime = req.query.lockTime;
+    if (req.body.fileName) {
+      const fileName = req.body.fileName;
+      const lockTime = req.body.lockTime;
       db.all("SELECT * FROM directory WHERE file_name=?", fileName, (err, rows) => {
         if (err) {
           console.error(err);
@@ -356,8 +356,8 @@ webServer.get('/unlock', (req, res) => {
     if (err) {
       return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
-    if (req.query.fileName) {
-      const fileName = req.query.fileName;
+    if (req.body.fileName) {
+      const fileName = req.body.fileName;
       db.all("SELECT * FROM directory WHERE file_name=?", fileName, (err, rows) => {
         if (err) {
           console.error(err);
@@ -387,8 +387,8 @@ webServer.get('/checkForLock', (req, res) => {
     if (err) {
       return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
-    if (req.query.fileName) {
-      const fileName = req.query.fileName;
+    if (req.body.fileName) {
+      const fileName = req.body.fileName;
       db.all("SELECT * FROM directory WHERE file_name=?", fileName, (err, rows) => {
         if (err) {
           console.error(err);

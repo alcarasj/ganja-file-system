@@ -42,19 +42,25 @@ webServer.use(bodyParser.json());
 
 webServer.get('/files', (req, res) => {
   const clientLog = "[" + req.ip + "] ";
-  db.all("SELECT * FROM directory", (err, rows) => {
+  const token = req.headers['x-access-token'];
+  if (!token) {
+    return res.status(401).send({ success: false, message: 'No token provided.' });
+  }
+  jwt.verify(token, SECRET, (err, decoded) => {
     if (err) {
-      console.error(err);
-      return res.status(500).send({ success: false, message: 'Failed to get a listing of files.' + err });
+      return res.status(500).send({ success: false, message: 'Failed to authenticate token.' });
     }
-    res.write("<h1>Ganja File System</h1>");
-    res.write("<h2>Files currently in server</h2>");
-    rows.forEach((row) => {
-      const encodedFileName = querystring.stringify({ fileName: row.file_name });
-      console.log(row);
-      res.write("<br>" + row.file_name + (row.lockable === 1 ? " LOCKABLE" : "") + "</br>");
+    db.all("SELECT * FROM directory", (err, rows) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).send({ success: false, message: 'Failed to get a listing of files.' + err });
+      }
+      var files = [];
+      rows.forEach((row) => {
+        files.push({ fileName: row.file_name, lockable: row.lockable === 1 ? "true" : "false" });
+      });
+      res.send({ success: true, files });
     });
-    return res.end();
   });
 });
 
